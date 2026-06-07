@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Rhino 8 (Windows) runs on .NET 7 -->
+    <TargetFramework>net7.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+
+    <AssemblyName>RhinoCopilotForMakers</AssemblyName>
+    <RootNamespace>RhinoCopilotForMakers</RootNamespace>
+
+    <!-- Rhino plugin assemblies are typically deployed with a .rhp extension.
+         (Under the hood it's a .NET assembly.) -->
+    <RhinoPluginFileName>$(AssemblyName).rhp</RhinoPluginFileName>
+
+    <!-- Unique deploy filename so builds can succeed even if Rhino has an older .rhp locked -->
+    <RhinoPluginDeployStamp>$([System.DateTime]::Now.ToString("yyyyMMdd-HHmmss"))</RhinoPluginDeployStamp>
+    <!-- Keep the filename stable; vary the output folder per build -->
+    <RhinoPluginDeployFileName>$(AssemblyName).rhp</RhinoPluginDeployFileName>
+
+    <!-- Keep output paths simple -->
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Put the installable .rhp in a separate deploy folder to avoid file locks while Rhino is running -->
+    <RhinoPluginDeployDir>$(ProjectDir)bin\$(Configuration)\_deploy\$(RhinoPluginDeployStamp)\</RhinoPluginDeployDir>
+  </PropertyGroup>
+
+  <Target Name="CreateRhp" AfterTargets="Build">
+    <!-- Copy the built DLL to a .rhp in a deploy folder for easy PluginManager install -->
+    <MakeDir Directories="$(RhinoPluginDeployDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFiles="$(RhinoPluginDeployDir)$(RhinoPluginDeployFileName)" OverwriteReadOnlyFiles="true" />
+  </Target>
+
+  <ItemGroup>
+    <!-- RhinoCommon for Rhino 8 -->
+    <PackageReference Include="RhinoCommon" Version="8.*" />
+
+    <!-- Eto for UI (Rhino hosts Eto; we reference it for compilation) -->
+    <PackageReference Include="Eto.Forms" Version="2.*" />
+    <PackageReference Include="Eto.Platform.Wpf" Version="2.*" />
+  </ItemGroup>
+
+</Project>
