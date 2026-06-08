@@ -56,7 +56,8 @@ public sealed class CopilotPanel : Panel
     {
       Content = _messagesStack,
       Border = BorderType.None,
-      BackgroundColor = Colors.White
+      BackgroundColor = Colors.White,
+      ExpandContentWidth = true
     };
 
     _messageRenderer = new MessageRenderer(_messagesStack, _scroll);
@@ -126,7 +127,7 @@ public sealed class CopilotPanel : Panel
 
   private void ClampContentWidth()
   {
-    var w = _scroll.Size.Width;
+    var w = _scroll.VisibleRect.Width > 0 ? _scroll.VisibleRect.Width : _scroll.Size.Width;
     if (w > 0)
       _messageRenderer.UpdateViewportWidth(w);
   }
