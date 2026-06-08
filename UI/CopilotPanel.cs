@@ -49,7 +49,8 @@ public sealed class CopilotPanel : Panel
     _messagesStack = new StackLayout
     {
       Spacing = 12,
-      Orientation = Orientation.Vertical
+      Orientation = Orientation.Vertical,
+      HorizontalContentAlignment = HorizontalAlignment.Stretch
     };
 
     _scroll = new Scrollable
@@ -292,7 +293,7 @@ public sealed class CopilotPanel : Panel
     };
 
     // Bubble look
-    var bubbleBg = isAssistant ? Colors.White : Color.FromArgb(243, 244, 246); // light gray for user
+    var bubbleBg = Colors.White;
 
     var bubble = new Panel
     {
@@ -302,6 +303,20 @@ public sealed class CopilotPanel : Panel
         ? new StackLayout { Spacing = 6, Items = { headerRow, body } }
         : body
     };
+
+    // User bubble border: Nexgen orange (FF5E19) with transparency.
+    // Eto Panels don't support border color directly, so we fake it with a 1px wrapper panel.
+    var nexgenOrangeBorder = Color.FromArgb(64, 0xFF, 0x5E, 0x19);
+    Control bubbleControl = bubble;
+    if (!isAssistant)
+    {
+      bubbleControl = new Panel
+      {
+        BackgroundColor = nexgenOrangeBorder,
+        Padding = 1,
+        Content = bubble
+      };
+    }
 
     // IMPORTANT: the container MUST expand full width, otherwise "right aligned" rows
     // will still appear left-aligned because the row shrinks to content width.
@@ -316,17 +331,17 @@ public sealed class CopilotPanel : Panel
     if (isAssistant)
     {
       // Left aligned: bubble then expanding spacer
-      row.Items.Add(bubble);
+      row.Items.Add(bubbleControl);
       row.Items.Add(new StackLayoutItem(null, expand: true));
     }
     else
     {
       // Right aligned: expanding spacer then bubble
       row.Items.Add(new StackLayoutItem(null, expand: true));
-      row.Items.Add(bubble);
+      row.Items.Add(bubbleControl);
     }
 
-    _messagesStack.Items.Add(new StackLayoutItem(row, expand: true) { HorizontalAlignment = HorizontalAlignment.Stretch });
+    _messagesStack.Items.Add(new StackLayoutItem(row) { HorizontalAlignment = HorizontalAlignment.Stretch });
 
     // Scroll to bottom.
     Application.Instance.AsyncInvoke(() => _scroll.ScrollPosition = new Point(0, int.MaxValue));
@@ -362,6 +377,7 @@ public sealed class CopilotPanel : Panel
           Font = new Font(FontFamilies.Monospace, 10),
           BackgroundColor = Color.FromArgb(247, 248, 250),
           Border = BorderType.None,
+          ScrollBars = ScrollBars.None,
           Wrap = true,
           // Fit full content height so the main chat scroll handles scrolling (no inner scrollbars).
           Height = 24 + (p.Text.Count(c => c == '\n') * 16)
