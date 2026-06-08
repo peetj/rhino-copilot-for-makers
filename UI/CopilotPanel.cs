@@ -363,7 +363,8 @@ public sealed class CopilotPanel : Panel
           BackgroundColor = Color.FromArgb(247, 248, 250),
           Border = BorderType.None,
           Wrap = true,
-          Height = Math.Min(220, 24 + (p.Text.Count(c => c == '\n') * 16))
+          // Fit full content height so the main chat scroll handles scrolling (no inner scrollbars).
+          Height = 24 + (p.Text.Count(c => c == '\n') * 16)
         };
 
         // ChatGPT-like: no "Copy block" buttons everywhere.
@@ -474,7 +475,7 @@ public sealed class CopilotPanel : Panel
           Font = new Font(FontFamilies.Monospace, 10),
           BackgroundColor = Color.FromArgb(247, 248, 250),
           Border = BorderType.None,
-          Wrap = true,
+          Wrap = false,
           Height = 28
         });
         continue;
