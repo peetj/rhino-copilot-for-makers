@@ -8,10 +8,18 @@ namespace RhinoCopilotForMakers.UI;
 
 internal sealed class MessageRenderer
 {
-  private const int ContentViewportInset = 14;
-  private const int RowHorizontalPadding = 12;
+  private const int ContentViewportInset = 8;
+  private const int RowLeftPadding = 8;
+  private const int RowRightPadding = 18;
   private const int BubbleSideGutter = 18;
   private const int MinimumBubbleWidth = 120;
+  private const float UserBubbleMaxWidthRatio = 0.74f;
+  private const float UserBubbleCornerRadius = 12f;
+  private static readonly Color NexgenOrange = Rgba(0xFF, 0x5E, 0x19);
+  private static readonly Color NexgenOrangeBorder = Rgba(0xFF, 0x5E, 0x19, 120);
+  private static readonly Color UserBubbleStroke = Rgba(0xFF, 0x5E, 0x19, 118);
+  private static readonly Color UserBubbleShadow = Rgba(0, 0, 0, 52);
+  private static readonly Color MutedText = Color.FromArgb(78, 78, 78);
 
   private readonly StackLayout _messagesStack;
   private readonly Scrollable _scroll;
@@ -36,11 +44,14 @@ internal sealed class MessageRenderer
 
     var bubbleWidth = Math.Max(
       MinimumBubbleWidth,
-      contentWidth - RowHorizontalPadding - BubbleSideGutter);
+      contentWidth - RowLeftPadding - RowRightPadding - BubbleSideGutter);
 
     foreach (var bubble in _resizableBubbles)
     {
-      bubble.Width = bubbleWidth;
+      if (bubble is SpeechBubbleDrawable speechBubble)
+        speechBubble.SetMaxBubbleWidth(Math.Max(MinimumBubbleWidth, (int)Math.Round(bubbleWidth * UserBubbleMaxWidthRatio)));
+      else
+        bubble.Width = bubbleWidth;
     }
 
     _messagesStack.Invalidate();
@@ -49,7 +60,7 @@ internal sealed class MessageRenderer
 
   public void AddMessageBubble(string content, bool isAssistant)
   {
-    AddMessageBubbleCustom(() => content, BuildMessageBody(content), isAssistant);
+    AddMessageBubbleCustom(() => content, BuildMessageBody(content, isAssistant), isAssistant);
   }
 
   private Control AddMessageBubbleCustom(Func<string> getCopyText, Control body, bool isAssistant)
@@ -58,45 +69,46 @@ internal sealed class MessageRenderer
     // - assistant messages are left-aligned with minimal chrome
     // - user messages are right-aligned with a subtle shaded bubble
 
-    // Header actions (ChatGPT-ish): no repeated "Copilot" label per message.
-    // Keep only an unobtrusive copy icon on the right for assistant messages.
-    var copyIcon = new Label
+    if (isAssistant)
     {
-      Text = "⧉",
-      ToolTip = "Copy",
-      TextColor = Color.FromArgb(180, 180, 180)
-    };
-    copyIcon.MouseDown += (_, _) => Clipboard.Instance.Text = getCopyText();
+      var copyIcon = new Label
+      {
+        Text = "⧉",
+        ToolTip = "Copy",
+        TextColor = Color.FromArgb(180, 180, 180)
+      };
+      copyIcon.MouseDown += (_, _) => Clipboard.Instance.Text = getCopyText();
+      body = new StackLayout
+      {
+        Orientation = Orientation.Horizontal,
+        Spacing = 8,
+        VerticalContentAlignment = VerticalAlignment.Top,
+        Items =
+        {
+          new StackLayoutItem(body, expand: true),
+          copyIcon
+        }
+      };
+    }
 
-    var headerRow = new StackLayout
-    {
-      Orientation = Orientation.Horizontal,
-      Spacing = 6,
-      HorizontalContentAlignment = HorizontalAlignment.Stretch,
-      Items = { new StackLayoutItem(null, expand: true), copyIcon }
-    };
-
-    var bubble = new Panel
-    {
-      BackgroundColor = Colors.White,
-      Padding = isAssistant ? new Padding(12, 10) : new Padding(10, 6),
-      Content = isAssistant
-        ? new StackLayout { Spacing = 6, Items = { headerRow, body } }
-        : body
-    };
-
-    // User bubble border: Nexgen orange (FF5E19) with transparency.
-    // Eto Panels don't support border color directly, so we fake it with a 1px wrapper panel.
-    var nexgenOrangeBorder = Color.FromArgb(64, 0xFF, 0x5E, 0x19);
-    Control bubbleControl = bubble;
-    if (!isAssistant)
+    Control bubbleControl;
+    if (isAssistant)
     {
       bubbleControl = new Panel
       {
-        BackgroundColor = nexgenOrangeBorder,
-        Padding = 1,
-        Content = bubble
+        BackgroundColor = Colors.White,
+        Padding = new Padding(12, 10),
+        Content = body
       };
+    }
+    else
+    {
+      bubbleControl = new SpeechBubbleDrawable(
+        SanitizeInlineMarkdown(getCopyText()),
+        SystemFonts.Default(),
+        MutedText,
+        UserBubbleStroke,
+        UserBubbleCornerRadius);
     }
 
     // IMPORTANT: the container MUST expand full width, otherwise "right aligned" rows
@@ -106,7 +118,7 @@ internal sealed class MessageRenderer
     {
       Orientation = Orientation.Horizontal,
       Spacing = 0,
-      Padding = new Padding(6, 0, 6, 0)
+      Padding = new Padding(RowLeftPadding, 0, RowRightPadding, 0)
     };
 
     if (isAssistant)
@@ -170,7 +182,7 @@ internal sealed class MessageRenderer
     };
 
     // White background + subtle Nexgen orange border.
-    var border = Color.FromArgb(64, 0xFF, 0x5E, 0x19);
+    var border = Rgba(0xFF, 0x5E, 0x19, 64);
     var body = new Panel { Padding = 8, BackgroundColor = Colors.White, Content = codeLabel };
     var framed = new Panel
     {
@@ -198,7 +210,7 @@ internal sealed class MessageRenderer
     };
   }
 
-  private Control BuildMessageBody(string content)
+  private Control BuildMessageBody(string content, bool isAssistant)
   {
     var parts = MessageFormatter.SplitFencedBlocks(content);
 
@@ -206,7 +218,7 @@ internal sealed class MessageRenderer
     {
       Spacing = 6,
       Orientation = Orientation.Vertical,
-      HorizontalContentAlignment = HorizontalAlignment.Stretch
+      HorizontalContentAlignment = isAssistant ? HorizontalAlignment.Stretch : HorizontalAlignment.Right
     };
 
     foreach (var part in parts)
@@ -217,20 +229,21 @@ internal sealed class MessageRenderer
       }
       else
       {
-        stack.Items.Add(RenderMarkdownLite(part.Text));
+        stack.Items.Add(RenderMarkdownLite(part.Text, isAssistant));
       }
     }
 
     return stack;
   }
 
-  private static Control RenderMarkdownLite(string text)
+  private static Control RenderMarkdownLite(string text, bool isAssistant)
   {
     var s = (text ?? string.Empty).Replace("\r\n", "\n").Trim();
+    var alignment = isAssistant ? TextAlignment.Left : TextAlignment.Right;
 
     if (!s.Contains('\n'))
     {
-      return new Label { Text = s, Wrap = WrapMode.Word };
+      return BuildTextLabel(SanitizeInlineMarkdown(s), alignment, isAssistant ? Colors.Black : MutedText);
     }
 
     var stack = new StackLayout
@@ -246,10 +259,10 @@ internal sealed class MessageRenderer
     void FlushParagraph()
     {
       if (para.Count == 0) return;
-      var t = string.Join(" ", para.Select(l => l.Trim())).Trim();
+      var t = SanitizeInlineMarkdown(string.Join(" ", para.Select(l => l.Trim())).Trim());
       para.Clear();
       if (t.Length == 0) return;
-      stack.Items.Add(new Label { Text = t, Wrap = WrapMode.Word });
+      stack.Items.Add(BuildTextLabel(t, alignment, isAssistant ? Colors.Black : MutedText));
     }
 
     foreach (var raw in lines)
@@ -269,19 +282,27 @@ internal sealed class MessageRenderer
         if (hashes is >= 1 and <= 4 && line.Length > hashes && line[hashes] == ' ')
         {
           FlushParagraph();
-          var title = line.Substring(hashes + 1).Trim();
+          var title = SanitizeInlineMarkdown(line.Substring(hashes + 1).Trim());
           var size = hashes switch { 1 => 12f, 2 => 11.5f, _ => 11f };
-          stack.Items.Add(new Label { Text = title, Font = new Font(SystemFont.Bold, size), Wrap = WrapMode.Word });
+          stack.Items.Add(BuildTextLabel(title, alignment, NexgenOrange, new Font(SystemFont.Bold, size)));
           continue;
         }
       }
 
       var trimmed = line.TrimStart();
+      string heading;
+      if (TryParseSectionHeading(trimmed, out heading))
+      {
+        FlushParagraph();
+        stack.Items.Add(BuildTextLabel(heading, alignment, NexgenOrange, new Font(SystemFont.Bold, 10.5f)));
+        continue;
+      }
+
       if (trimmed.StartsWith("- ") || trimmed.StartsWith("* ") || trimmed.StartsWith("• "))
       {
         FlushParagraph();
-        var item = trimmed.Substring(2).Trim();
-        stack.Items.Add(new Label { Text = "• " + item, Wrap = WrapMode.Word });
+        var item = SanitizeInlineMarkdown(trimmed.Substring(2).Trim());
+        stack.Items.Add(BuildTextLabel("• " + item, alignment));
         continue;
       }
 
@@ -289,8 +310,8 @@ internal sealed class MessageRenderer
       if (dot > 0 && dot < 4 && int.TryParse(trimmed.Substring(0, dot), out var n) && trimmed.Length > dot + 1 && trimmed[dot + 1] == ' ')
       {
         FlushParagraph();
-        var item = trimmed.Substring(dot + 2).Trim();
-        stack.Items.Add(new Label { Text = $"{n}. {item}", Wrap = WrapMode.Word });
+        var item = SanitizeInlineMarkdown(trimmed.Substring(dot + 2).Trim());
+        stack.Items.Add(BuildTextLabel($"{n}. {item}", alignment));
         continue;
       }
 
@@ -300,16 +321,17 @@ internal sealed class MessageRenderer
         stack.Items.Add(new Panel
         {
           Padding = 1,
-          BackgroundColor = Color.FromArgb(64, 0xFF, 0x5E, 0x19),
+          BackgroundColor = NexgenOrangeBorder,
           Content = new Panel
           {
             Padding = 6,
             BackgroundColor = Colors.White,
             Content = new Label
             {
-              Text = trimmed.Replace('`', ' '),
+              Text = SanitizeInlineMarkdown(trimmed.Replace('`', ' ').Trim()),
               Font = new Font(FontFamilies.Monospace, 9),
-              Wrap = WrapMode.Word
+              Wrap = WrapMode.Word,
+              TextAlignment = alignment
             }
           }
         });
@@ -321,5 +343,185 @@ internal sealed class MessageRenderer
 
     FlushParagraph();
     return stack;
+  }
+
+  private static Label BuildTextLabel(string text, TextAlignment alignment, Color? textColor = null, Font? font = null)
+  {
+    return new Label
+    {
+      Text = text,
+      Wrap = WrapMode.Word,
+      TextAlignment = alignment,
+      TextColor = textColor ?? Colors.Black,
+      Font = font ?? SystemFonts.Default()
+    };
+  }
+
+  private static Color Rgba(int red, int green, int blue, int alpha = 255) =>
+    Color.FromArgb(red, green, blue, alpha);
+
+  private static string SanitizeInlineMarkdown(string text) =>
+    (text ?? string.Empty).Replace("**", string.Empty).Trim();
+
+  private static bool TryParseSectionHeading(string line, out string heading)
+  {
+    heading = string.Empty;
+    var trimmed = (line ?? string.Empty).Trim();
+    if (trimmed.Length == 0 || !trimmed.Contains("**"))
+      return false;
+
+    var open = trimmed.IndexOf("**", StringComparison.Ordinal);
+    var close = trimmed.LastIndexOf("**", StringComparison.Ordinal);
+    if (open < 0 || close <= open)
+      return false;
+
+    var prefix = trimmed.Substring(0, open).Trim();
+    var core = trimmed.Substring(open + 2, close - open - 2).Trim();
+    var suffix = trimmed.Substring(close + 2).Trim();
+    if (core.Length == 0 || suffix.Length > 0)
+      return false;
+
+    if (prefix.Length > 0)
+    {
+      if (prefix.EndsWith(")"))
+      {
+        var numberPart = prefix.Substring(0, prefix.Length - 1).Trim();
+        if (!int.TryParse(numberPart, out _))
+          return false;
+
+        heading = $"{numberPart}. {SanitizeInlineMarkdown(core)}";
+        return true;
+      }
+
+      if (prefix.EndsWith("."))
+      {
+        var numberPart = prefix.Substring(0, prefix.Length - 1).Trim();
+        if (!int.TryParse(numberPart, out _))
+          return false;
+
+        heading = $"{numberPart}. {SanitizeInlineMarkdown(core)}";
+        return true;
+      }
+
+      return false;
+    }
+
+    heading = SanitizeInlineMarkdown(core);
+    return true;
+  }
+
+  private sealed class SpeechBubbleDrawable : Drawable
+  {
+    private const int TailWidth = 16;
+    private const int TailHeight = 10;
+    private const int TailInset = 30;
+    private const int BubbleRightInset = 4;
+    private const float BorderThickness = 1.5f;
+
+    private readonly string _text;
+    private readonly Font _font;
+    private readonly Color _textColor;
+    private readonly Color _borderColor;
+    private readonly float _cornerRadius;
+    private readonly Padding _padding = new(12, 8, 14, 9);
+    private int _maxBubbleWidth = MinimumBubbleWidth;
+
+    public SpeechBubbleDrawable(string text, Font font, Color textColor, Color borderColor, float cornerRadius)
+    {
+      _text = text ?? string.Empty;
+      _font = font;
+      _textColor = textColor;
+      _borderColor = borderColor;
+      _cornerRadius = cornerRadius;
+    }
+
+    public void SetMaxBubbleWidth(int width)
+    {
+      _maxBubbleWidth = Math.Max(MinimumBubbleWidth, width);
+      var desiredWidth = MeasureDesiredWidth();
+      Width = Math.Min(_maxBubbleWidth, desiredWidth);
+      Height = MeasureHeight(Width);
+      Invalidate();
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+      base.OnPaint(e);
+
+      var rect = new RectangleF(
+        0.5f,
+        0.5f,
+        Math.Max(0, Width - BubbleRightInset - 1),
+        Math.Max(0, Height - TailHeight - 1));
+      var shadowRect = new RectangleF(rect.X, rect.Y + 1, rect.Width, rect.Height);
+      using var path = GraphicsPath.GetRoundRect(rect, _cornerRadius);
+      using var shadowPath = GraphicsPath.GetRoundRect(shadowRect, _cornerRadius);
+      using var pen = new Pen(_borderColor, BorderThickness);
+      using var shadowPen = new Pen(UserBubbleShadow, 1);
+      using var textBrush = new SolidBrush(_textColor);
+      using var fillBrush = new SolidBrush(Colors.White);
+
+      e.Graphics.DrawPath(shadowPen, shadowPath);
+      e.Graphics.FillPath(fillBrush, path);
+      e.Graphics.DrawPath(pen, path);
+
+      var tailBaseRight = Math.Max(rect.Left + _cornerRadius + TailWidth + 4, rect.Right - TailInset);
+      var tailBaseLeft = tailBaseRight - TailWidth;
+      var tip = new PointF(rect.Right - 8, rect.Bottom + TailHeight - 1);
+      var shadowTip = new PointF(tip.X, tip.Y + 1);
+
+      using var tailPath = new GraphicsPath();
+      tailPath.AddLine(new PointF(tailBaseLeft, rect.Bottom), tip);
+      tailPath.AddLine(tip, new PointF(tailBaseRight, rect.Bottom));
+      tailPath.CloseFigure();
+
+      using var shadowTailPath = new GraphicsPath();
+      shadowTailPath.AddLine(new PointF(tailBaseLeft, rect.Bottom + 1), shadowTip);
+      shadowTailPath.AddLine(shadowTip, new PointF(tailBaseRight, rect.Bottom + 1));
+      shadowTailPath.CloseFigure();
+
+      e.Graphics.DrawPath(shadowPen, shadowTailPath);
+      e.Graphics.FillPath(fillBrush, tailPath);
+      e.Graphics.DrawPath(pen, tailPath);
+
+      var textRect = new RectangleF(
+        _padding.Left,
+        _padding.Top,
+        Math.Max(0, Width - _padding.Left - _padding.Right),
+        Math.Max(0, Height - TailHeight - _padding.Top - _padding.Bottom));
+
+      e.Graphics.DrawText(
+        _font,
+        textBrush,
+        textRect,
+        _text,
+        FormattedTextWrapMode.Word,
+        FormattedTextAlignment.Right,
+        FormattedTextTrimming.None);
+    }
+
+    private int MeasureDesiredWidth()
+    {
+      var measured = _font.MeasureString(_text);
+      return Math.Max(
+        MinimumBubbleWidth,
+        (int)Math.Ceiling(measured.Width + _padding.Left + _padding.Right));
+    }
+
+    private int MeasureHeight(int width)
+    {
+      var innerWidth = Math.Max(1, width - _padding.Left - _padding.Right);
+      using var text = new FormattedText
+      {
+        Font = _font,
+        Text = _text,
+        MaximumWidth = innerWidth,
+        Wrap = FormattedTextWrapMode.Word,
+        Alignment = FormattedTextAlignment.Right
+      };
+
+      var size = text.Measure();
+      return (int)Math.Ceiling(size.Height + _padding.Top + _padding.Bottom + TailHeight);
+    }
   }
 }
