@@ -61,11 +61,11 @@ public sealed class CopilotPanel : Panel
     };
 
     // Prevent horizontal scrolling: keep the inner stack exactly as wide as the viewport.
-    _scroll.SizeChanged += (_, _) =>
-    {
-      // Width is enough; height is driven by content.
-      _messagesStack.Width = Math.Max(0, _scroll.Size.Width - (Padding.Left + Padding.Right));
-    };
+    _scroll.SizeChanged += (_, _) => ClampContentWidth();
+    SizeChanged += (_, _) => ClampContentWidth();
+
+    // Also clamp once after first layout pass (docking can skip initial SizeChanged).
+    Application.Instance.AsyncInvoke(ClampContentWidth);
 
     _status = new Label
     {
@@ -140,6 +140,15 @@ public sealed class CopilotPanel : Panel
       "Hi — ask me anything about Rhino 8 product-design workflows. " +
       "I can suggest safe step-by-step actions and copyable Rhino commands."
     );
+  }
+
+  private void ClampContentWidth()
+  {
+    // Keep chat content the same width as the scroll viewport so nothing can force horizontal scrolling.
+    // This is especially important when the panel is docked/resized.
+    var w = _scroll?.Size.Width ?? 0;
+    if (w <= 0) return;
+    _messagesStack.Width = w;
   }
 
   private async Task SendAsync()
@@ -296,7 +305,8 @@ public sealed class CopilotPanel : Panel
     {
       Orientation = Orientation.Horizontal,
       Spacing = 6,
-      Items = { null, copyIcon }
+      HorizontalContentAlignment = HorizontalAlignment.Stretch,
+      Items = { new StackLayoutItem(null, expand: true), copyIcon }
     };
 
     // Bubble look
@@ -453,7 +463,7 @@ public sealed class CopilotPanel : Panel
     // If it's a single line, still wrap — Rhino panels can be narrow.
     if (!s.Contains('\n'))
     {
-      return new Label { Text = s, Wrap = WrapMode.Word, Font = new Font(SystemFont.Default, 10.5f) };
+      return new Label { Text = s, Wrap = WrapMode.Word };
     }
 
     var stack = new StackLayout
@@ -471,7 +481,7 @@ public sealed class CopilotPanel : Panel
       var t = string.Join(" ", para.Select(l => l.Trim())).Trim();
       para.Clear();
       if (t.Length == 0) return;
-      stack.Items.Add(new Label { Text = t, Wrap = WrapMode.Word, Font = new Font(SystemFont.Default, 10.5f) });
+      stack.Items.Add(new Label { Text = t, Wrap = WrapMode.Word });
     }
 
     foreach (var raw in lines)
@@ -506,7 +516,7 @@ public sealed class CopilotPanel : Panel
       {
         FlushParagraph();
         var item = trimmed.Substring(2).Trim();
-        stack.Items.Add(new Label { Text = "• " + item, Wrap = WrapMode.Word, Font = new Font(SystemFont.Default, 10.5f) });
+        stack.Items.Add(new Label { Text = "• " + item, Wrap = WrapMode.Word });
         continue;
       }
 
@@ -516,7 +526,7 @@ public sealed class CopilotPanel : Panel
       {
         FlushParagraph();
         var item = trimmed.Substring(dot + 2).Trim();
-        stack.Items.Add(new Label { Text = $"{n}. {item}", Wrap = WrapMode.Word, Font = new Font(SystemFont.Default, 10.5f) });
+        stack.Items.Add(new Label { Text = $"{n}. {item}", Wrap = WrapMode.Word });
         continue;
       }
 
