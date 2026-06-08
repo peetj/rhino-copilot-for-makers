@@ -303,22 +303,27 @@ public sealed class CopilotPanel : Panel
         : body
     };
 
-    // Constrain feel: we emulate max width by adding side padding via the row container.
-    var row = new TableLayout
+    // IMPORTANT: the container MUST expand full width, otherwise "right aligned" rows
+    // will still appear left-aligned because the row shrinks to content width.
+    // Using a horizontal StackLayout with an expanding spacer reliably anchors bubbles.
+    var row = new StackLayout
     {
-      Spacing = new Size(0, 0),
+      Orientation = Orientation.Horizontal,
+      Spacing = 0,
       Padding = new Padding(6, 0, 6, 0)
     };
 
     if (isAssistant)
     {
       // Left aligned: bubble then expanding spacer
-      row.Rows.Add(new TableRow(new TableCell(bubble, false), new TableCell(null, true)));
+      row.Items.Add(bubble);
+      row.Items.Add(new StackLayoutItem(null, expand: true));
     }
     else
     {
       // Right aligned: expanding spacer then bubble
-      row.Rows.Add(new TableRow(new TableCell(null, true), new TableCell(bubble, false)));
+      row.Items.Add(new StackLayoutItem(null, expand: true));
+      row.Items.Add(bubble);
     }
 
     _messagesStack.Items.Add(row);
@@ -355,7 +360,9 @@ public sealed class CopilotPanel : Panel
           Text = p.Text,
           ReadOnly = true,
           Font = new Font(FontFamilies.Monospace, 10),
-          BackgroundColor = Color.FromArgb(255, 255, 255),
+          BackgroundColor = Color.FromArgb(247, 248, 250),
+          Border = BorderType.None,
+          Wrap = true,
           Height = Math.Min(220, 24 + (p.Text.Count(c => c == '\n') * 16))
         };
 
@@ -367,8 +374,7 @@ public sealed class CopilotPanel : Panel
           Spacing = 4,
           Items =
           {
-            new Label{ Text = "Commands", TextColor = Colors.Gray, Font = new Font(SystemFont.Default, 9) },
-            new Panel { Padding = 6, BackgroundColor = Color.FromArgb(255, 255, 255), Content = codeArea }
+            new Panel { Padding = 8, BackgroundColor = Color.FromArgb(247, 248, 250), Content = codeArea }
           }
         });
       }
@@ -466,7 +472,9 @@ public sealed class CopilotPanel : Panel
           Text = trimmed.Replace('`', ' '),
           ReadOnly = true,
           Font = new Font(FontFamilies.Monospace, 10),
-          BackgroundColor = Color.FromArgb(255, 255, 255),
+          BackgroundColor = Color.FromArgb(247, 248, 250),
+          Border = BorderType.None,
+          Wrap = true,
           Height = 28
         });
         continue;
