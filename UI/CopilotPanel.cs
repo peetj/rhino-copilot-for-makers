@@ -326,7 +326,7 @@ public sealed class CopilotPanel : Panel
       row.Items.Add(bubble);
     }
 
-    _messagesStack.Items.Add(row);
+    _messagesStack.Items.Add(new StackLayoutItem(row, expand: true) { HorizontalAlignment = HorizontalAlignment.Stretch });
 
     // Scroll to bottom.
     Application.Instance.AsyncInvoke(() => _scroll.ScrollPosition = new Point(0, int.MaxValue));
