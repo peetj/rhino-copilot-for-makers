@@ -52,13 +52,11 @@ public sealed class CopilotPanel : Panel
       Orientation = Orientation.Vertical
     };
 
-    var chatBg = Color.FromArgb(248, 249, 251); // very light grey (ChatGPT-ish)
-
     _scroll = new Scrollable
     {
       Content = _messagesStack,
       Border = BorderType.None,
-      BackgroundColor = chatBg
+      BackgroundColor = Colors.White
     };
 
     _status = new Label
@@ -278,18 +276,19 @@ public sealed class CopilotPanel : Panel
 
     // Header actions (ChatGPT-ish): no repeated "Copilot" label per message.
     // Keep only an unobtrusive copy icon on the right for assistant messages.
-    var copyBtn = new LinkButton
+    var copyIcon = new Label
     {
       Text = "⧉",
-      ToolTip = "Copy"
+      ToolTip = "Copy",
+      TextColor = Color.FromArgb(180, 180, 180)
     };
-    copyBtn.Click += (_, _) => Clipboard.Instance.Text = getCopyText();
+    copyIcon.MouseDown += (_, _) => Clipboard.Instance.Text = getCopyText();
 
     var headerRow = new StackLayout
     {
       Orientation = Orientation.Horizontal,
       Spacing = 6,
-      Items = { null, copyBtn }
+      Items = { null, copyIcon }
     };
 
     // Bubble look
@@ -313,12 +312,13 @@ public sealed class CopilotPanel : Panel
 
     if (isAssistant)
     {
-      row.Rows.Add(new TableRow(new TableCell(bubble, true), new TableCell(null, true)));
+      // Left aligned: bubble then expanding spacer
+      row.Rows.Add(new TableRow(new TableCell(bubble, false), new TableCell(null, true)));
     }
     else
     {
-      // Right align user bubble
-      row.Rows.Add(new TableRow(new TableCell(null, true), new TableCell(bubble, true)));
+      // Right aligned: expanding spacer then bubble
+      row.Rows.Add(new TableRow(new TableCell(null, true), new TableCell(bubble, false)));
     }
 
     _messagesStack.Items.Add(row);
@@ -359,16 +359,15 @@ public sealed class CopilotPanel : Panel
           Height = Math.Min(220, 24 + (p.Text.Count(c => c == '\n') * 16))
         };
 
-        var copy = new Button { Text = "Copy block" };
-        copy.Click += (_, _) => Clipboard.Instance.Text = p.Text;
-
+        // ChatGPT-like: no "Copy block" buttons everywhere.
+        // We'll rely on the per-message copy icon for now.
         stack.Items.Add(new StackLayout
         {
           Orientation = Orientation.Vertical,
           Spacing = 4,
           Items =
           {
-            new StackLayout { Orientation = Orientation.Horizontal, Items = { new Label{ Text = "Commands", TextColor = Colors.Gray }, null, copy } },
+            new Label{ Text = "Commands", TextColor = Colors.Gray, Font = new Font(SystemFont.Default, 9) },
             new Panel { Padding = 6, BackgroundColor = Color.FromArgb(255, 255, 255), Content = codeArea }
           }
         });
