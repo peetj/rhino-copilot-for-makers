@@ -55,6 +55,8 @@ Git Bash:
 ./scripts/dev.sh Debug
 ```
 
+Both install scripts resolve the newest timestamped `.rhp` from `bin/<Configuration>/_deploy/`.
+
 Notes:
 - You typically still **Reload** the plugin via `PluginManager` if Rhino is already running.
 - `run-rhino.sh` uses a baked-in Rhino path: `C:\\Program Files\\Rhino 8\\System\\Rhino.exe`

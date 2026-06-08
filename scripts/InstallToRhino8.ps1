@@ -7,10 +7,13 @@ $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $PSScriptRoot
 $bin = Join-Path $root "bin\$Configuration"
+$deployRoot = Join-Path $bin "_deploy"
 
-$rhp = Get-ChildItem -Path $bin -Filter "RhinoCopilotForMakers.rhp" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+$rhp = Get-ChildItem -Path $deployRoot -Filter "RhinoCopilotForMakers.rhp" -Recurse -ErrorAction SilentlyContinue |
+  Sort-Object LastWriteTimeUtc -Descending |
+  Select-Object -First 1
 if (-not $rhp) {
-  throw "Could not find RhinoCopilotForMakers.rhp under $bin. Build first."
+  throw "Could not find RhinoCopilotForMakers.rhp under $deployRoot. Build first."
 }
 
 $destDir = Join-Path $RhinoPluginsDir "RhinoCopilotForMakers"
