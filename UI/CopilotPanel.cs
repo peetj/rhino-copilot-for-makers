@@ -116,7 +116,7 @@ public sealed class CopilotPanel : Panel
       Spacing = 6,
       Items =
       {
-        new Label { Text = "Rhino Copilot for Makers", Font = new Font(SystemFont.Bold, 12) },
+        new Label { Text = "Rhino Copilot for Makers", Font = new Font(SystemFont.Bold, 11.5f), Wrap = WrapMode.Word },
         null,
         settingsBtn
       }
@@ -363,6 +363,63 @@ public sealed class CopilotPanel : Panel
   ///
   /// Tip: Encourage the model to use fenced blocks for Rhino commands.
   /// </summary>
+  private Control BuildExpandableCodeBlock(string code)
+  {
+    var trimmed = (code ?? string.Empty).TrimEnd();
+    var firstLine = trimmed.Replace("\r\n", "\n").Split('\n')[0].Trim();
+    if (firstLine.Length > 80) firstLine = firstLine.Substring(0, 80) + "…";
+
+    var chevron = new Label { Text = "▸", TextColor = Colors.Gray };
+    var summary = new Label
+    {
+      Text = string.IsNullOrWhiteSpace(firstLine) ? "Commands" : firstLine,
+      Font = new Font(FontFamilies.Monospace, 9),
+      TextColor = Colors.Gray,
+      Wrap = WrapMode.None
+    };
+
+    var header = new StackLayout
+    {
+      Orientation = Orientation.Horizontal,
+      Spacing = 6,
+      Items = { chevron, summary, null }
+    };
+
+    var codeLabel = new Label
+    {
+      Text = trimmed,
+      Font = new Font(FontFamilies.Monospace, 9),
+      Wrap = WrapMode.Word,
+      TextColor = Colors.Black
+    };
+
+    // White background + subtle Nexgen orange border.
+    var border = Color.FromArgb(64, 0xFF, 0x5E, 0x19);
+    var body = new Panel { Padding = 8, BackgroundColor = Colors.White, Content = codeLabel };
+    var framed = new Panel { Padding = 1, BackgroundColor = border, Content = body };
+
+    framed.Visible = false;
+
+    void Toggle()
+    {
+      framed.Visible = !framed.Visible;
+      chevron.Text = framed.Visible ? "▾" : "▸";
+      // Force relayout so the scroll content height updates immediately.
+      _messagesStack.Invalidate();
+      _scroll.Invalidate();
+    }
+
+    // Make header clickable.
+    header.MouseDown += (_, _) => Toggle();
+
+    return new StackLayout
+    {
+      Orientation = Orientation.Vertical,
+      Spacing = 4,
+      Items = { header, framed }
+    };
+  }
+
   private Control BuildMessageBody(string content)
   {
     var parts = SplitFencedBlocks(content);
@@ -377,29 +434,7 @@ public sealed class CopilotPanel : Panel
     {
       if (p.IsCode)
       {
-        var codeArea = new TextArea
-        {
-          Text = p.Text,
-          ReadOnly = true,
-          Font = new Font(FontFamilies.Monospace, 10),
-          BackgroundColor = Colors.White,
-          Border = BorderType.None,
-          Wrap = true,
-          // Fit full content height so the main chat scroll handles scrolling (no inner scrollbars).
-          Height = 24 + (p.Text.Count(c => c == '\n') * 16)
-        };
-
-        // ChatGPT-like: no "Copy block" buttons everywhere.
-        // We'll rely on the per-message copy icon for now.
-        stack.Items.Add(new StackLayout
-        {
-          Orientation = Orientation.Vertical,
-          Spacing = 4,
-          Items =
-          {
-            new Panel { Padding = 8, BackgroundColor = Colors.White, Content = codeArea }
-          }
-        });
+        stack.Items.Add(BuildExpandableCodeBlock(p.Text));
       }
       else
       {
@@ -418,7 +453,7 @@ public sealed class CopilotPanel : Panel
     // If it's a single line, still wrap — Rhino panels can be narrow.
     if (!s.Contains('\n'))
     {
-      return new Label { Text = s, Wrap = WrapMode.Word };
+      return new Label { Text = s, Wrap = WrapMode.Word, Font = new Font(SystemFont.Default, 10.5f) };
     }
 
     var stack = new StackLayout
@@ -436,7 +471,7 @@ public sealed class CopilotPanel : Panel
       var t = string.Join(" ", para.Select(l => l.Trim())).Trim();
       para.Clear();
       if (t.Length == 0) return;
-      stack.Items.Add(new Label { Text = t, Wrap = WrapMode.Word });
+      stack.Items.Add(new Label { Text = t, Wrap = WrapMode.Word, Font = new Font(SystemFont.Default, 10.5f) });
     }
 
     foreach (var raw in lines)
@@ -459,8 +494,8 @@ public sealed class CopilotPanel : Panel
         {
           FlushParagraph();
           var title = line.Substring(hashes + 1).Trim();
-          var size = hashes switch { 1 => 14f, 2 => 13f, _ => 12f };
-          stack.Items.Add(new Label { Text = title, Font = new Font(SystemFont.Bold, size) });
+          var size = hashes switch { 1 => 12f, 2 => 11.5f, _ => 11f };
+          stack.Items.Add(new Label { Text = title, Font = new Font(SystemFont.Bold, size), Wrap = WrapMode.Word });
           continue;
         }
       }
@@ -471,7 +506,7 @@ public sealed class CopilotPanel : Panel
       {
         FlushParagraph();
         var item = trimmed.Substring(2).Trim();
-        stack.Items.Add(new Label { Text = "• " + item, Wrap = WrapMode.Word });
+        stack.Items.Add(new Label { Text = "• " + item, Wrap = WrapMode.Word, Font = new Font(SystemFont.Default, 10.5f) });
         continue;
       }
 
@@ -481,7 +516,7 @@ public sealed class CopilotPanel : Panel
       {
         FlushParagraph();
         var item = trimmed.Substring(dot + 2).Trim();
-        stack.Items.Add(new Label { Text = $"{n}. {item}", Wrap = WrapMode.Word });
+        stack.Items.Add(new Label { Text = $"{n}. {item}", Wrap = WrapMode.Word, Font = new Font(SystemFont.Default, 10.5f) });
         continue;
       }
 
@@ -490,16 +525,7 @@ public sealed class CopilotPanel : Panel
       if (trimmed.Contains('`'))
       {
         FlushParagraph();
-        stack.Items.Add(new TextArea
-        {
-          Text = trimmed.Replace('`', ' '),
-          ReadOnly = true,
-          Font = new Font(FontFamilies.Monospace, 10),
-          BackgroundColor = Colors.White,
-          Border = BorderType.None,
-          Wrap = false,
-          Height = 28
-        });
+        stack.Items.Add(new Panel { Padding = 1, BackgroundColor = Color.FromArgb(64, 0xFF, 0x5E, 0x19), Content = new Panel { Padding = 6, BackgroundColor = Colors.White, Content = new Label { Text = trimmed.Replace('`', ' '), Font = new Font(FontFamilies.Monospace, 9), Wrap = WrapMode.Word } } });
         continue;
       }
 
