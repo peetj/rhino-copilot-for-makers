@@ -7,13 +7,21 @@ set -euo pipefail
 CONFIGURATION="${1:-Debug}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-RHP_PATH="$ROOT_DIR/bin/$CONFIGURATION/RhinoCopilotForMakers.rhp"
+DEPLOY_ROOT="$ROOT_DIR/bin/$CONFIGURATION/_deploy"
+shopt -s nullglob
+RHP_CANDIDATES=( "$DEPLOY_ROOT"/*/RhinoCopilotForMakers.rhp )
+shopt -u nullglob
 
-if [[ ! -f "$RHP_PATH" ]]; then
-  echo "Missing: $RHP_PATH" >&2
+if (( ${#RHP_CANDIDATES[@]} == 0 )); then
+  echo "Missing deployed .rhp under: $DEPLOY_ROOT" >&2
   echo "Run: ./scripts/build.sh $CONFIGURATION" >&2
   exit 1
 fi
+
+IFS=$'\n' SORTED_CANDIDATES=($(printf '%s\n' "${RHP_CANDIDATES[@]}" | sort))
+unset IFS
+LAST_INDEX=$((${#SORTED_CANDIDATES[@]} - 1))
+RHP_PATH="${SORTED_CANDIDATES[$LAST_INDEX]}"
 
 # Convert Windows %APPDATA% to a Git Bash path via cygpath.
 if ! command -v cygpath >/dev/null 2>&1; then
@@ -33,5 +41,5 @@ PLUGINS_DIR="$APPDATA_POSIX/McNeel/Rhinoceros/8.0/Plug-ins/RhinoCopilotForMakers
 mkdir -p "$PLUGINS_DIR"
 cp -f "$RHP_PATH" "$PLUGINS_DIR/RhinoCopilotForMakers.rhp"
 
-echo "Installed to: $PLUGINS_DIR/RhinoCopilotForMakers.rhp"
+echo "Installed: $RHP_PATH -> $PLUGINS_DIR/RhinoCopilotForMakers.rhp"
 echo "In Rhino: PluginManager → find plugin → Reload (or Install from that path)."

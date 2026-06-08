@@ -18,12 +18,21 @@ fi
 
 dotnet build "$ROOT_DIR/RhinoCopilotForMakers.csproj" -c "$CONFIGURATION"
 
-# The csproj copies the built DLL to a .rhp after build.
-RHP_PATH="$ROOT_DIR/bin/$CONFIGURATION/RhinoCopilotForMakers.rhp"
-if [[ -f "$RHP_PATH" ]]; then
-  echo "Built: $RHP_PATH"
-else
-  echo "Build succeeded but .rhp not found at: $RHP_PATH" >&2
+# The csproj copies the built DLL to a timestamped deploy folder.
+DEPLOY_ROOT="$ROOT_DIR/bin/$CONFIGURATION/_deploy"
+shopt -s nullglob
+RHP_CANDIDATES=( "$DEPLOY_ROOT"/*/RhinoCopilotForMakers.rhp )
+shopt -u nullglob
+
+if (( ${#RHP_CANDIDATES[@]} == 0 )); then
+  echo "Build succeeded but no deployed .rhp was found under: $DEPLOY_ROOT" >&2
   echo "Check the CreateRhp target in RhinoCopilotForMakers.csproj" >&2
   exit 2
 fi
+
+IFS=$'\n' SORTED_CANDIDATES=($(printf '%s\n' "${RHP_CANDIDATES[@]}" | sort))
+unset IFS
+LAST_INDEX=$((${#SORTED_CANDIDATES[@]} - 1))
+RHP_PATH="${SORTED_CANDIDATES[$LAST_INDEX]}"
+
+echo "Built: $RHP_PATH"
