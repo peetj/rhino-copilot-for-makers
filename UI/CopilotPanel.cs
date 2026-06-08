@@ -60,6 +60,13 @@ public sealed class CopilotPanel : Panel
       BackgroundColor = Colors.White
     };
 
+    // Prevent horizontal scrolling: keep the inner stack exactly as wide as the viewport.
+    _scroll.SizeChanged += (_, _) =>
+    {
+      // Width is enough; height is driven by content.
+      _messagesStack.Width = Math.Max(0, _scroll.Size.Width - (Padding.Left + Padding.Right));
+    };
+
     _status = new Label
     {
       Text = "",
@@ -375,7 +382,7 @@ public sealed class CopilotPanel : Panel
           Text = p.Text,
           ReadOnly = true,
           Font = new Font(FontFamilies.Monospace, 10),
-          BackgroundColor = Color.FromArgb(247, 248, 250),
+          BackgroundColor = Colors.White,
           Border = BorderType.None,
           Wrap = true,
           // Fit full content height so the main chat scroll handles scrolling (no inner scrollbars).
@@ -390,7 +397,7 @@ public sealed class CopilotPanel : Panel
           Spacing = 4,
           Items =
           {
-            new Panel { Padding = 8, BackgroundColor = Color.FromArgb(247, 248, 250), Content = codeArea }
+            new Panel { Padding = 8, BackgroundColor = Colors.White, Content = codeArea }
           }
         });
       }
@@ -488,7 +495,7 @@ public sealed class CopilotPanel : Panel
           Text = trimmed.Replace('`', ' '),
           ReadOnly = true,
           Font = new Font(FontFamilies.Monospace, 10),
-          BackgroundColor = Color.FromArgb(247, 248, 250),
+          BackgroundColor = Colors.White,
           Border = BorderType.None,
           Wrap = false,
           Height = 28
