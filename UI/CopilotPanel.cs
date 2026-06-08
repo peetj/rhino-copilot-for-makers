@@ -377,7 +377,6 @@ public sealed class CopilotPanel : Panel
           Font = new Font(FontFamilies.Monospace, 10),
           BackgroundColor = Color.FromArgb(247, 248, 250),
           Border = BorderType.None,
-          ScrollBars = ScrollBars.None,
           Wrap = true,
           // Fit full content height so the main chat scroll handles scrolling (no inner scrollbars).
           Height = 24 + (p.Text.Count(c => c == '\n') * 16)
