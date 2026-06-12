@@ -22,6 +22,8 @@
 
     <!-- Keep output paths simple -->
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+
+    <RhinoCopilotBuildStamp>$([System.DateTime]::Now.ToString("yyyy-MM-dd_HHmmss"))</RhinoCopilotBuildStamp>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -37,6 +39,34 @@
           DestinationFiles="$(RhinoPluginDeployDir)$(AssemblyName).deps.json"
           OverwriteReadOnlyFiles="true"
           Condition="Exists('$(TargetDir)$(AssemblyName).deps.json')" />
+  </Target>
+
+  <Target Name="SetBuildMetadata" BeforeTargets="GenerateAssemblyInfo">
+    <PropertyGroup>
+      <RhinoCopilotCommitSha Condition="'$(SourceRevisionId)' != ''">$(SourceRevisionId)</RhinoCopilotCommitSha>
+      <RhinoCopilotCommitSha Condition="'$(RhinoCopilotCommitSha)' == ''">nogit</RhinoCopilotCommitSha>
+      <RhinoCopilotShortSha>$([System.String]::Copy('$(RhinoCopilotCommitSha)').Substring(0, $([System.Math]::Min(8, $(RhinoCopilotCommitSha.Length)))))</RhinoCopilotShortSha>
+      <RhinoCopilotBuildVersion>$(RhinoCopilotBuildStamp)_$(Configuration)_$(RhinoCopilotShortSha)</RhinoCopilotBuildVersion>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>RhinoCopilotBuildVersion</_Parameter1>
+        <_Parameter2>$(RhinoCopilotBuildVersion)</_Parameter2>
+      </AssemblyAttribute>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>RhinoCopilotBuildTimestamp</_Parameter1>
+        <_Parameter2>$(RhinoCopilotBuildStamp)</_Parameter2>
+      </AssemblyAttribute>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>RhinoCopilotBuildCommit</_Parameter1>
+        <_Parameter2>$(RhinoCopilotCommitSha)</_Parameter2>
+      </AssemblyAttribute>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>RhinoCopilotBuildConfiguration</_Parameter1>
+        <_Parameter2>$(Configuration)</_Parameter2>
+      </AssemblyAttribute>
+    </ItemGroup>
   </Target>
 
   <ItemGroup>

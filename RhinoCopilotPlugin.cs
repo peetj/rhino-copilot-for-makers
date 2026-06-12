@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Net.Http;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using Rhino;
 using Rhino.PlugIns;
@@ -60,7 +61,7 @@ public sealed class RhinoCopilotPlugin : PlugIn
     };
     RhinoApp.Idle += handler;
 
-    RhinoApp.WriteLine("Rhino Copilot for Makers loaded.");
+    RhinoApp.WriteLine($"Rhino Copilot for Makers loaded. Build: {GetBuildVersion()}");
     return LoadReturnCode.Success;
   }
 
@@ -79,5 +80,19 @@ public sealed class RhinoCopilotPlugin : PlugIn
     }
 
     UI.CopilotPanelHost.OpenInPreferredDock();
+  }
+
+  private static string GetBuildVersion()
+  {
+    var metadata = typeof(RhinoCopilotPlugin).Assembly
+      .GetCustomAttributes<AssemblyMetadataAttribute>();
+
+    foreach (var entry in metadata)
+    {
+      if (string.Equals(entry.Key, "RhinoCopilotBuildVersion", StringComparison.Ordinal))
+        return entry.Value ?? "unknown";
+    }
+
+    return "unknown";
   }
 }
