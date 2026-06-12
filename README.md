@@ -1,25 +1,26 @@
 # Nexgen Copilot for Rhino (Rhino 8)
 
-First iteration: a guidance-only, dockable in-app chatbot panel for Rhino 8 (Windows) built with **C# + RhinoCommon + Eto.Forms**.
+Current iteration: a dockable Rhino 8 copilot panel for Windows built with **C# + RhinoCommon + Eto.Forms**, backed by a Cloudflare worker orchestration layer.
 
 ## MVP features
 - Command `RhinoCopilot` toggles a **dockable panel**.
 - Chat UI: history, multiline input, Send/Cancel, Copy buttons, loading state.
-- Streaming responses (tokens appear as they arrive).
 - Markdown-lite rendering for headings/bullets/numbered steps + fenced command blocks.
-- OpenAI-compatible **Chat Completions** HTTP call.
+- Structured turn requests sent to a **Cloudflare worker**.
 - Compact **Rhino document context snapshot** sent with every request.
-- **Safety**: guidance-only. No automatic command execution, no geometry modification, no RunScript.
+- Plan approval flow for supported local execution steps.
+- Safe local execution boundary inside the Rhino plugin.
 
 ## File structure
 - `RhinoCopilotPlugin.cs` – plugin entrypoint + panel registration
 - `RhinoCopilotCommand.cs` – `RhinoCopilot` command toggles panel
 - `UI/CopilotPanelHost.cs` – registers the panel with Rhino
 - `UI/CopilotPanel.cs` – Eto UI + chat logic
-- `Services/LlmClient.cs` – OpenAI-compatible chat completions client
+- `Services/CopilotCloudClient.cs` – Cloud worker transport client
 - `Services/RhinoContextCollector.cs` – collects Rhino model context
 - `Models/*` – message + context snapshot models
-- `Settings/CopilotSettings.cs` – endpoint/model/key stored in Rhino plugin settings
+- `Settings/CopilotSettings.cs` – worker URL + shared-secret settings
+- `cloud/` – Cloudflare worker, orchestrator, planner, critic, compiler
 
 ## Build (Windows)
 Prereqs:
@@ -72,16 +73,15 @@ Notes:
 - `run-rhino.sh` uses a baked-in Rhino path: `C:\\Program Files\\Rhino 8\\System\\Rhino.exe`
   - If yours differs, edit `scripts/run-rhino.sh`.
 
-## Configure the LLM endpoint/model/key
+## Configure the Cloud Worker
 In Rhino:
 1. Run `RhinoCopilot` to open the panel.
 2. Click **Settings**.
 3. Fill in:
-   - **Endpoint**: e.g. `https://api.openai.com/v1/chat/completions` (or your compatible server)
-   - **Model**: e.g. `gpt-4.1-mini` (placeholder)
-   - **API Key**: your key
+   - **Worker URL**: e.g. `http://127.0.0.1:8787` for local `wrangler dev`, or your deployed Worker URL
+   - **Plugin Shared Secret**: optional for local dev, recommended once worker auth is enabled in deployed environments
 
-The API key is stored locally via Rhino plugin settings (no secrets are hardcoded).
+The plugin stores these values locally via Rhino plugin settings.
 
 ## Notes on context snapshot
 The plugin collects a compact snapshot before each request:
@@ -110,10 +110,11 @@ _Some Rhino commands_
 
 Those blocks are displayed in a monospaced, visually distinct box with a **Copy block** button.
 
-## Safety / non-goals (v1)
-- No automatic model edits
-- No `RhinoApp.RunScript` execution
-- No direct geometry modifications
+## Safety boundary
+- Cloud interprets and plans, but does not mutate Rhino directly.
+- The Rhino plugin is the only executor.
+- Unsupported or unsafe actions are rejected or clarified before execution.
+- Local execution remains allowlisted and bounded by the plugin.
 
 ## Next steps (after MVP)
 - Better message rendering (markdown-lite, inline command chips)

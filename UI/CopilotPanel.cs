@@ -32,28 +32,16 @@ public sealed class CopilotPanel : Panel
   private readonly Button _rejectPlan;
   private readonly Button _runNextStep;
 
-  // System prompt required by spec.
-  private const string SystemPrompt =
-    "You are Nexgen Copilot for Rhino, a professional assistant embedded inside Rhino 8. " +
-    "You help product designers, makers, and 3D printing users with Rhino 8 workflows. " +
-    "You understand the current Rhino document context provided by the plugin, including units, selected object types, layers, and bounding box dimensions. " +
-    "Give concise, practical guidance. When useful, provide copyable Rhino command sequences. " +
-    "When you output Rhino commands, ALWAYS put them in a fenced code block using triple backticks (```), so they are easy to copy. " +
-    "Do not claim to edit the model. Do not ask unnecessary clarifying questions; make the most likely Rhino 8 assumption and proceed. " +
-    "Warn before destructive operations. Prefer safe, reversible workflows.";
-
   public CopilotPanel()
   {
     Padding = 10;
 
     _chatSession = new ChatSessionController(
       new RhinoContextCollector(),
-      RhinoCopilotPlugin.Instance!.LlmClient,
-      () => RhinoCopilotPlugin.Instance!.CopilotSettings,
+      RhinoCopilotPlugin.Instance!.CloudClient,
       RhinoCopilotPlugin.Instance!.PlanExecutionCoordinator,
       RhinoCopilotPlugin.Instance!.IntentInterpreter,
-      MessageFormatter.NormalizeCommandBlocks,
-      SystemPrompt);
+      MessageFormatter.NormalizeCommandBlocks);
 
     _messagesStack = new StackLayout
     {
