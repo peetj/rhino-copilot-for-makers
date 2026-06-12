@@ -18,6 +18,7 @@ public sealed class RhinoCopilotPlugin : PlugIn
   private const string AutoOpenFlagFileName = "rhino-copilot-auto-open.flag";
 
   public static RhinoCopilotPlugin? Instance { get; private set; }
+  public override PlugInLoadTime LoadTime => PlugInLoadTime.AtStartup;
 
   public RhinoCopilotPlugin()
   {
