@@ -49,6 +49,11 @@ PowerShell:
 
 Git Bash:
 ```bash
+./scripts/dev-reload.sh -Configuration Debug -RestartRhino
+```
+
+Git Bash:
+```bash
 ./scripts/build.sh Debug
 ./scripts/install.sh Debug
 ./scripts/run-rhino.sh
