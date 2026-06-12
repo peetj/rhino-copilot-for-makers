@@ -1,4 +1,4 @@
-# Rhino Copilot for Makers (Rhino 8)
+# Nexgen Copilot for Rhino (Rhino 8)
 
 First iteration: a guidance-only, dockable in-app chatbot panel for Rhino 8 (Windows) built with **C# + RhinoCommon + Eto.Forms**.
 

@@ -21,7 +21,7 @@ public sealed class RhinoCopilotSettingsCommand : Rhino.Commands.Command
     }
     catch (System.Exception ex)
     {
-      RhinoApp.WriteLine($"Rhino Copilot settings failed: {ex.Message}");
+      RhinoApp.WriteLine($"Nexgen Copilot settings failed: {ex.Message}");
       return Result.Failure;
     }
   }
