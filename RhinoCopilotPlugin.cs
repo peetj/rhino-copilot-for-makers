@@ -1,8 +1,10 @@
 using System;
+using System.IO;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using Rhino;
 using Rhino.PlugIns;
+using Rhino.UI;
 using RhinoCopilotForMakers.Services;
 
 namespace RhinoCopilotForMakers;
@@ -13,6 +15,8 @@ namespace RhinoCopilotForMakers;
 [Guid("A6D1A2E4-7F2C-4D7E-9E1D-3B4B4C7C2C1D")]
 public sealed class RhinoCopilotPlugin : PlugIn
 {
+  private const string AutoOpenFlagFileName = "rhino-copilot-auto-open.flag";
+
   public static RhinoCopilotPlugin? Instance { get; private set; }
 
   public RhinoCopilotPlugin()
@@ -32,6 +36,9 @@ public sealed class RhinoCopilotPlugin : PlugIn
   /// </summary>
   public Settings.CopilotSettings CopilotSettings => new(Settings);
 
+  internal static string AutoOpenFlagPath =>
+    Path.Combine(Path.GetTempPath(), AutoOpenFlagFileName);
+
   protected override LoadReturnCode OnLoad(ref string errorMessage)
   {
     // Registering panels during early load can fail if Rhino hasn't assigned the plug-in ID yet
@@ -43,6 +50,7 @@ public sealed class RhinoCopilotPlugin : PlugIn
       try
       {
         UI.CopilotPanelHost.Register();
+        TryAutoOpenPanelForDevLoop();
       }
       catch (Exception ex)
       {
@@ -53,5 +61,22 @@ public sealed class RhinoCopilotPlugin : PlugIn
 
     RhinoApp.WriteLine("Rhino Copilot for Makers loaded.");
     return LoadReturnCode.Success;
+  }
+
+  private static void TryAutoOpenPanelForDevLoop()
+  {
+    if (!File.Exists(AutoOpenFlagPath))
+      return;
+
+    try
+    {
+      File.Delete(AutoOpenFlagPath);
+    }
+    catch
+    {
+      // Best-effort cleanup only. If deletion fails, still try to open the panel.
+    }
+
+    Panels.OpenPanel(UI.CopilotPanelHost.PanelId);
   }
 }

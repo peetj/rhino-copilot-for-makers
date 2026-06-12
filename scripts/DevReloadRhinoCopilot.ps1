@@ -35,9 +35,11 @@ try {
     return
   }
 
-  $startupMacro = '/nosplash /runscript="_RhinoCopilotShow"'
-  Write-Host "Launching Rhino and opening the Copilot panel..."
-  Start-Process -FilePath $RhinoExe -ArgumentList $startupMacro
+  $flagPath = Join-Path $env:TEMP 'rhino-copilot-auto-open.flag'
+  New-Item -ItemType File -Force -Path $flagPath | Out-Null
+
+  Write-Host "Launching Rhino. The plug-in will open the Copilot panel after it loads..."
+  Start-Process -FilePath $RhinoExe -ArgumentList '/nosplash'
 }
 finally {
   Pop-Location
