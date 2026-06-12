@@ -22,6 +22,15 @@
 
     <!-- Keep output paths simple -->
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+
+    <RhinoCopilotBuildStamp>$([System.DateTime]::Now.ToString("yyyy-MM-dd_HHmmss"))</RhinoCopilotBuildStamp>
+    <RhinoCopilotVersionMajor>1</RhinoCopilotVersionMajor>
+    <RhinoCopilotVersionMinor>0</RhinoCopilotVersionMinor>
+    <RhinoCopilotVersionPatch>$([System.DateTime]::Now.DayOfYear)</RhinoCopilotVersionPatch>
+    <RhinoCopilotVersionBuild>$([System.DateTime]::Now.ToString("HHmm"))</RhinoCopilotVersionBuild>
+    <Version>$(RhinoCopilotVersionMajor).$(RhinoCopilotVersionMinor).$(RhinoCopilotVersionPatch).$(RhinoCopilotVersionBuild)</Version>
+    <AssemblyVersion>$(Version)</AssemblyVersion>
+    <FileVersion>$(Version)</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -33,6 +42,39 @@
     <!-- Copy the built DLL to a .rhp in a deploy folder for easy PluginManager install -->
     <MakeDir Directories="$(RhinoPluginDeployDir)" />
     <Copy SourceFiles="$(TargetPath)" DestinationFiles="$(RhinoPluginDeployDir)$(RhinoPluginDeployFileName)" OverwriteReadOnlyFiles="true" />
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).deps.json"
+          DestinationFiles="$(RhinoPluginDeployDir)$(AssemblyName).deps.json"
+          OverwriteReadOnlyFiles="true"
+          Condition="Exists('$(TargetDir)$(AssemblyName).deps.json')" />
+  </Target>
+
+  <Target Name="SetBuildMetadata" BeforeTargets="GenerateAssemblyInfo">
+    <PropertyGroup>
+      <RhinoCopilotCommitSha Condition="'$(SourceRevisionId)' != ''">$(SourceRevisionId)</RhinoCopilotCommitSha>
+      <RhinoCopilotCommitSha Condition="'$(RhinoCopilotCommitSha)' == ''">nogit</RhinoCopilotCommitSha>
+      <RhinoCopilotShortSha>$([System.String]::Copy('$(RhinoCopilotCommitSha)').Substring(0, $([System.Math]::Min(8, $(RhinoCopilotCommitSha.Length)))))</RhinoCopilotShortSha>
+      <RhinoCopilotBuildVersion>$(RhinoCopilotBuildStamp)_$(Configuration)_$(RhinoCopilotShortSha)</RhinoCopilotBuildVersion>
+      <InformationalVersion>$(RhinoCopilotBuildVersion)</InformationalVersion>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>RhinoCopilotBuildVersion</_Parameter1>
+        <_Parameter2>$(RhinoCopilotBuildVersion)</_Parameter2>
+      </AssemblyAttribute>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>RhinoCopilotBuildTimestamp</_Parameter1>
+        <_Parameter2>$(RhinoCopilotBuildStamp)</_Parameter2>
+      </AssemblyAttribute>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>RhinoCopilotBuildCommit</_Parameter1>
+        <_Parameter2>$(RhinoCopilotCommitSha)</_Parameter2>
+      </AssemblyAttribute>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>RhinoCopilotBuildConfiguration</_Parameter1>
+        <_Parameter2>$(Configuration)</_Parameter2>
+      </AssemblyAttribute>
+    </ItemGroup>
   </Target>
 
   <ItemGroup>

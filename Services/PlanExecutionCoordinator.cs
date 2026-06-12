@@ -62,6 +62,12 @@ internal sealed class PlanExecutionCoordinator
     ClearPlan();
   }
 
+  public void Reset()
+  {
+    _stepObjectIds.Clear();
+    ClearPlan();
+  }
+
   public void RequestRunNextStep()
   {
     if (_currentPlan is null || _isRunningStep || CurrentStep is null)

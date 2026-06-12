@@ -20,6 +20,8 @@ internal sealed class MessageRenderer
   private static readonly Color UserBubbleStroke = Rgba(0xFF, 0x5E, 0x19, 118);
   private static readonly Color UserBubbleShadow = Rgba(0, 0, 0, 52);
   private static readonly Color MutedText = Color.FromArgb(78, 78, 78);
+  private static readonly Color CopyIconIdle = Color.FromArgb(180, 180, 180);
+  private static readonly Color CopyIconHover = Rgba(0xFF, 0x5E, 0x19, 210);
 
   private readonly StackLayout _messagesStack;
   private readonly Scrollable _scroll;
@@ -63,6 +65,14 @@ internal sealed class MessageRenderer
     AddMessageBubbleCustom(() => content, BuildMessageBody(content, isAssistant), isAssistant);
   }
 
+  public void ClearMessages()
+  {
+    _resizableBubbles.Clear();
+    _messagesStack.Items.Clear();
+    _messagesStack.Invalidate();
+    _scroll.Invalidate();
+  }
+
   private Control AddMessageBubbleCustom(Func<string> getCopyText, Control body, bool isAssistant)
   {
     // ChatGPT-ish light UI:
@@ -75,8 +85,10 @@ internal sealed class MessageRenderer
       {
         Text = "⧉",
         ToolTip = "Copy response",
-        TextColor = Color.FromArgb(180, 180, 180)
+        TextColor = CopyIconIdle,
+        Cursor = Cursors.Pointer
       };
+      WireCopyHover(copyIcon);
       copyIcon.MouseDown += (_, _) => Clipboard.Instance.Text = getCopyText();
       body = new StackLayout
       {
@@ -168,8 +180,10 @@ internal sealed class MessageRenderer
     {
       Text = "⧉",
       ToolTip = "Copy commands",
-      TextColor = Color.FromArgb(180, 180, 180)
+      TextColor = CopyIconIdle,
+      Cursor = Cursors.Pointer
     };
+    WireCopyHover(copyIcon);
 
     var header = new StackLayout
     {
@@ -366,6 +380,12 @@ internal sealed class MessageRenderer
 
   private static Color Rgba(int red, int green, int blue, int alpha = 255) =>
     Color.FromArgb(red, green, blue, alpha);
+
+  private static void WireCopyHover(Label copyIcon)
+  {
+    copyIcon.MouseEnter += (_, _) => copyIcon.TextColor = CopyIconHover;
+    copyIcon.MouseLeave += (_, _) => copyIcon.TextColor = CopyIconIdle;
+  }
 
   private static string SanitizeInlineMarkdown(string text) =>
     (text ?? string.Empty).Replace("**", string.Empty).Trim();

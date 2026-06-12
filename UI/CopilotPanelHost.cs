@@ -19,4 +19,27 @@ internal static class CopilotPanelHost
       "Rhino Copilot",
       null);
   }
+
+  public static void OpenInPreferredDock()
+  {
+    try
+    {
+      Panels.OpenPanel(PanelIds.Layers);
+      var layersDockBarId = Panels.PanelDockBar(PanelIds.Layers);
+      if (layersDockBarId != Guid.Empty)
+      {
+        Panels.OpenPanel(layersDockBarId, PanelId, true);
+        return;
+      }
+
+      var openedAsSibling = Panels.OpenPanelAsSibling(PanelId, PanelIds.Layers, true);
+      if (openedAsSibling)
+        return;
+    }
+    catch
+    {
+    }
+
+    Panels.OpenPanel(PanelId, true);
+  }
 }

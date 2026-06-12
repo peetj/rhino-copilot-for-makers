@@ -44,6 +44,12 @@ This project includes an MSBuild step that copies the built assembly to an insta
 PowerShell:
 ```powershell
 ./scripts/InstallToRhino8.ps1 -Configuration Debug
+./scripts/DevReloadRhinoCopilot.ps1 -Configuration Debug -RestartRhino
+```
+
+Git Bash:
+```bash
+./scripts/dev-reload.sh -Configuration Debug -RestartRhino
 ```
 
 Git Bash:
@@ -59,6 +65,10 @@ Both install scripts resolve the newest timestamped `.rhp` from `bin/<Configurat
 
 Notes:
 - You typically still **Reload** the plugin via `PluginManager` if Rhino is already running.
+- Faster Windows dev loop:
+  - `./scripts/DevReloadRhinoCopilot.ps1 -Configuration Debug -RestartRhino`
+  - This builds, installs the latest `.rhp`, restarts Rhino, and drops a one-shot flag so the plug-in opens the Copilot panel after it has loaded.
+  - If Rhino is already running, use `-RestartRhino`; otherwise the script now skips install rather than trying to overwrite a locked plug-in file.
 - `run-rhino.sh` uses a baked-in Rhino path: `C:\\Program Files\\Rhino 8\\System\\Rhino.exe`
   - If yours differs, edit `scripts/run-rhino.sh`.
 
