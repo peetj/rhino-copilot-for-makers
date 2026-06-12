@@ -78,6 +78,6 @@ public sealed class RhinoCopilotPlugin : PlugIn
       // Best-effort cleanup only. If deletion fails, still try to open the panel.
     }
 
-    Panels.OpenPanel(UI.CopilotPanelHost.PanelId);
+    UI.CopilotPanelHost.OpenInPreferredDock();
   }
 }

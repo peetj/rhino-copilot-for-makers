@@ -17,7 +17,7 @@ public sealed class RhinoCopilotShowCommand : Command
   {
     try
     {
-      Panels.OpenPanel(UI.CopilotPanelHost.PanelId);
+      UI.CopilotPanelHost.OpenInPreferredDock();
       return Result.Success;
     }
     catch (Exception ex)

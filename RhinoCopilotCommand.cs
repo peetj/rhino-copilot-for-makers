@@ -24,7 +24,7 @@ public sealed class RhinoCopilotCommand : Command
       if (isVisible)
         Panels.ClosePanel(panelId);
       else
-        Panels.OpenPanel(panelId);
+        UI.CopilotPanelHost.OpenInPreferredDock();
 
       return Result.Success;
     }
