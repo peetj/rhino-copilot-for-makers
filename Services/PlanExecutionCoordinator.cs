@@ -80,11 +80,21 @@ internal sealed class PlanExecutionCoordinator
   {
     Application.Instance.AsyncInvoke(() =>
     {
-      var started = RhinoApp.RunScript("_RhinoCopilotExecutePlanStep", false);
-      if (!started)
+      var doc = RhinoDoc.ActiveDoc;
+      if (doc is null)
       {
-        AssistantMessageGenerated?.Invoke("I could not start the Rhino plan runner command.");
-        PublishState(BuildReadyState(detailOverride: "Step runner failed to start. Try again."));
+        AssistantMessageGenerated?.Invoke("I could not find an active Rhino document for the next plan step.");
+        PublishState(BuildReadyState(detailOverride: "No active Rhino document. Open or activate a document, then try again."));
+        return;
+      }
+
+      var result = ExecuteCurrentStep(doc);
+      if (result != Result.Success && CurrentStep is not null)
+      {
+        PublishState(BuildReadyState(
+          titleOverride: "Plan Paused",
+          detailOverride: $"Step {CurrentStep.Sequence} did not complete. You can retry it when ready.",
+          canRunNextStep: true));
       }
     });
   }
