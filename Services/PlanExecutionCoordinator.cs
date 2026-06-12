@@ -94,7 +94,7 @@ internal sealed class PlanExecutionCoordinator
       if (_currentPlan is null || CurrentStep is null)
         return;
 
-      var started = RhinoApp.RunScript("_RhinoCopilotExecutePlanStep", false);
+      var started = TryStartPlanRunner();
       if (!started)
       {
         AssistantMessageGenerated?.Invoke("I could not start the Rhino plan runner command.");
@@ -444,4 +444,25 @@ internal sealed class PlanExecutionCoordinator
   }
 
   private void PublishState(UI.PlanExecutionState state) => StateChanged?.Invoke(state);
+
+  private static bool TryStartPlanRunner()
+  {
+    var attempts = new[]
+    {
+      "RhinoCopilotExecutePlanStep",
+      "_RhinoCopilotExecutePlanStep",
+      "! RhinoCopilotExecutePlanStep",
+      "! _RhinoCopilotExecutePlanStep"
+    };
+
+    foreach (var macro in attempts)
+    {
+      var started = RhinoApp.RunScript(macro, false);
+      RhinoApp.WriteLine($"Nexgen Copilot runner attempt '{macro}' => {(started ? "started" : "failed")}");
+      if (started)
+        return true;
+    }
+
+    return false;
+  }
 }
