@@ -62,5 +62,6 @@ The current local implementation is heuristic and supports rectangle-oriented wo
 Files:
 
 - `Services/IIntentInterpreter.cs`
+- `Services/CloudIntentInterpreter.cs`
 - `Services/HeuristicIntentInterpreter.cs`
 - `Services/FixedIntentInterpreter.cs`

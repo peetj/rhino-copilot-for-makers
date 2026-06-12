@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using RhinoCopilotForMakers.Contracts;
 using RhinoCopilotForMakers.Models;
 
@@ -13,11 +15,11 @@ internal sealed class CompositeIntentInterpreter : IIntentInterpreter
     _interpreters = interpreters;
   }
 
-  public IntentInterpretationPayload? TryInterpret(string userText, RhinoContextSnapshot context)
+  public async Task<IntentInterpretationPayload?> TryInterpretAsync(string userText, RhinoContextSnapshot context, CancellationToken cancellationToken)
   {
     foreach (var interpreter in _interpreters)
     {
-      var interpretation = interpreter.TryInterpret(userText, context);
+      var interpretation = await interpreter.TryInterpretAsync(userText, context, cancellationToken);
       if (interpretation is not null)
         return interpretation;
     }

@@ -1,9 +1,11 @@
 using RhinoCopilotForMakers.Contracts;
 using RhinoCopilotForMakers.Models;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace RhinoCopilotForMakers.Services;
 
 internal interface IIntentInterpreter
 {
-  IntentInterpretationPayload? TryInterpret(string userText, RhinoContextSnapshot context);
+  Task<IntentInterpretationPayload?> TryInterpretAsync(string userText, RhinoContextSnapshot context, CancellationToken cancellationToken);
 }

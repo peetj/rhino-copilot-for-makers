@@ -1,5 +1,4 @@
 using System;
-using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Eto.Drawing;
@@ -45,7 +44,7 @@ public sealed class CopilotPanel : Panel
 
     _chatSession = new ChatSessionController(
       new RhinoContextCollector(),
-      new LlmClient(new HttpClient()),
+      RhinoCopilotPlugin.Instance!.LlmClient,
       () => RhinoCopilotPlugin.Instance!.CopilotSettings,
       RhinoCopilotPlugin.Instance!.PlanExecutionCoordinator,
       RhinoCopilotPlugin.Instance!.IntentInterpreter,

@@ -73,34 +73,35 @@ internal sealed class ChatSessionController : IDisposable
     AddMessage(ChatRole.User, text);
 
     var context = _contextCollector.Collect();
-    var interpretation = _intentInterpreter.TryInterpret(text, context);
-    var mockResponse = MockPlanFactory.TryCreate(interpretation, context);
-    if (mockResponse is not null)
-    {
-      if (mockResponse.Message is not null)
-        AddMessage(ChatRole.Assistant, mockResponse.Message.Text);
-
-      if (mockResponse.Plan is not null)
-        _planExecutionCoordinator.LoadPlan(mockResponse);
-
-      return;
-    }
-
-    var settings = _settingsProvider();
-    if (!settings.HasApiKey)
-    {
-      AddMessage(ChatRole.Assistant, "Set your API key first: click Settings -> paste key -> Save. (It is stored locally in Rhino plugin settings.)");
-      return;
-    }
-
     _cts?.Cancel();
     _cts?.Dispose();
     _cts = new CancellationTokenSource();
-
-    UpdateState(isBusy: true, statusText: "Thinking...");
+    UpdateState(isBusy: true, statusText: "Interpreting...");
 
     try
     {
+      var interpretation = await _intentInterpreter.TryInterpretAsync(text, context, _cts.Token);
+      var mockResponse = MockPlanFactory.TryCreate(interpretation, context);
+      if (mockResponse is not null)
+      {
+        if (mockResponse.Message is not null)
+          AddMessage(ChatRole.Assistant, mockResponse.Message.Text);
+
+        if (mockResponse.Plan is not null)
+          _planExecutionCoordinator.LoadPlan(mockResponse);
+
+        return;
+      }
+
+      var settings = _settingsProvider();
+      if (!settings.HasApiKey)
+      {
+        AddMessage(ChatRole.Assistant, "Set your API key first: click Settings -> paste key -> Save. (It is stored locally in Rhino plugin settings.)");
+        return;
+      }
+
+      UpdateState(isBusy: true, statusText: "Thinking...");
+
       var historyForApi = _history
         .Where(m => m.Role is ChatRole.User or ChatRole.Assistant)
         .ToList();

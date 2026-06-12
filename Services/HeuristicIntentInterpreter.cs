@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 using RhinoCopilotForMakers.Contracts;
 using RhinoCopilotForMakers.Models;
 
@@ -10,14 +12,14 @@ namespace RhinoCopilotForMakers.Services;
 
 internal sealed class HeuristicIntentInterpreter : IIntentInterpreter
 {
-  public IntentInterpretationPayload? TryInterpret(string userText, RhinoContextSnapshot context)
+  public Task<IntentInterpretationPayload?> TryInterpretAsync(string userText, RhinoContextSnapshot context, CancellationToken cancellationToken)
   {
     if (string.IsNullOrWhiteSpace(userText))
-      return null;
+      return Task.FromResult<IntentInterpretationPayload?>(null);
 
     var normalized = userText.Trim().ToLowerInvariant();
     if (!HasRectangleIntent(normalized))
-      return null;
+      return Task.FromResult<IntentInterpretationPayload?>(null);
 
     var widthHeight = TryParseRectangleSize(userText);
     var extrudeHeight = HasExtrudeIntent(normalized) ? TryParseExtrudeHeight(userText) : null;
@@ -106,13 +108,13 @@ internal sealed class HeuristicIntentInterpreter : IIntentInterpreter
       ? ExecutionReadiness.NeedsClarification
       : ExecutionReadiness.ReadyToPlan;
 
-    return new IntentInterpretationPayload(
+    return Task.FromResult<IntentInterpretationPayload?>(new IntentInterpretationPayload(
       PrimaryIntent: BuildPrimaryIntent(operations),
       ExecutionReadiness: readiness,
       Confidence: ComputeConfidence(widthHeight, extrudeHeight, hasFilletIntent, filletRadius),
       Operations: operations,
       MissingInputs: missingInputs.Count == 0 ? null : missingInputs,
-      Assumptions: assumptions.Count == 0 ? null : assumptions);
+      Assumptions: assumptions.Count == 0 ? null : assumptions));
   }
 
   private static InterpretedParameterPayload Parameter(string name, object? value, string? unit, string? sourceText) =>
