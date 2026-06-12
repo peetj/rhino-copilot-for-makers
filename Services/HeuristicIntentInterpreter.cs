@@ -12,6 +12,10 @@ namespace RhinoCopilotForMakers.Services;
 
 internal sealed class HeuristicIntentInterpreter : IIntentInterpreter
 {
+  private static readonly Regex RectangleSizeRegex = new(@"(?<w>\d+(?:\.\d+)?)\s*(?:x|×|by)\s*(?<h>\d+(?:\.\d+)?)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+  private static readonly Regex ExtrudeIntentRegex = new(@"\bextrud\w*\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+  private static readonly Regex RectangleIntentRegex = new(@"\brect(?:angle)?\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
   public Task<IntentInterpretationPayload?> TryInterpretAsync(string userText, RhinoContextSnapshot context, CancellationToken cancellationToken)
   {
     if (string.IsNullOrWhiteSpace(userText))
@@ -145,14 +149,14 @@ internal sealed class HeuristicIntentInterpreter : IIntentInterpreter
   }
 
   private static bool HasRectangleIntent(string normalizedText) =>
-    Regex.IsMatch(normalizedText, @"\brect(?:angle)?\b", RegexOptions.IgnoreCase);
+    RectangleIntentRegex.IsMatch(normalizedText);
 
   private static bool HasExtrudeIntent(string normalizedText) =>
-    Regex.IsMatch(normalizedText, @"\bextrud\w*\b", RegexOptions.IgnoreCase);
+    ExtrudeIntentRegex.IsMatch(normalizedText);
 
-  private static (double Width, double Height)? TryParseRectangleSize(string text)
+  internal static (double Width, double Height)? TryParseRectangleSize(string text)
   {
-    var match = Regex.Match(text, @"(?<w>\d+(?:\.\d+)?)\s*(?:x|×|by)\s*(?<h>\d+(?:\.\d+)?)", RegexOptions.IgnoreCase);
+    var match = RectangleSizeRegex.Match(text);
     if (!match.Success)
       return null;
 
@@ -164,7 +168,7 @@ internal sealed class HeuristicIntentInterpreter : IIntentInterpreter
     return width > 0 && height > 0 ? (width, height) : null;
   }
 
-  private static double? TryParseExtrudeHeight(string text)
+  internal static double? TryParseExtrudeHeight(string text)
   {
     var patterns = new[]
     {
@@ -185,14 +189,26 @@ internal sealed class HeuristicIntentInterpreter : IIntentInterpreter
     return null;
   }
 
-  private static double? TryParseFilletRadius(string text)
+  internal static double? TryParseFilletRadius(string text)
   {
-    var match = Regex.Match(text, @"fillet(?:\s+radius)?(?:\s+of|\s+to|\s*=)?\s*(?<r>\d+(?:\.\d+)?)", RegexOptions.IgnoreCase);
-    if (!match.Success)
-      return null;
+    var patterns = new[]
+    {
+      @"fillet(?:\s+radius)?(?:\s+of|\s+to|\s*=)?\s*(?<r>\d+(?:\.\d+)?)",
+      @"fillet(?:\s+the)?(?:\s+\w+){0,4}\s+to\s+(?<r>\d+(?:\.\d+)?)",
+      @"radius\s+(?:of|to|=)?\s*(?<r>\d+(?:\.\d+)?)"
+    };
 
-    return double.TryParse(match.Groups["r"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var radius) && radius > 0
-      ? radius
-      : null;
+    foreach (var pattern in patterns)
+    {
+      var match = Regex.Match(text, pattern, RegexOptions.IgnoreCase);
+      if (match.Success &&
+          double.TryParse(match.Groups["r"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var radius) &&
+          radius > 0)
+      {
+        return radius;
+      }
+    }
+
+    return null;
   }
 }

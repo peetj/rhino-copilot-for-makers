@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using RhinoCopilotForMakers.Contracts;
@@ -27,6 +28,7 @@ internal sealed class ChatSessionController : IDisposable
 
   private CancellationTokenSource? _cts;
   private ChatSessionState _state = ChatSessionState.Idle;
+  private string? _pendingClarificationPrompt;
 
   public ChatSessionController(
     RhinoContextCollector contextCollector,
@@ -71,6 +73,7 @@ internal sealed class ChatSessionController : IDisposable
     _cts?.Dispose();
     _cts = null;
     _history.Clear();
+    _pendingClarificationPrompt = null;
     _planExecutionCoordinator.Reset();
     UpdateState(isBusy: false, statusText: "");
   }
@@ -90,10 +93,18 @@ internal sealed class ChatSessionController : IDisposable
 
     try
     {
-      var interpretation = await _intentInterpreter.TryInterpretAsync(text, context, _cts.Token);
+      var isClarificationReply = _pendingClarificationPrompt is not null && LooksLikeClarificationReply(text);
+      var interpretationText = isClarificationReply
+        ? $"{_pendingClarificationPrompt}\nClarification: {text}"
+        : text;
+      var interpretation = await _intentInterpreter.TryInterpretAsync(interpretationText, context, _cts.Token);
       var mockResponse = MockPlanFactory.TryCreate(interpretation, context);
       if (mockResponse is not null)
       {
+        _pendingClarificationPrompt = mockResponse.ResponseType == ResponseType.ClarificationRequest
+          ? interpretationText
+          : null;
+
         if (mockResponse.Message is not null)
           AddMessage(ChatRole.Assistant, mockResponse.Message.Text);
 
@@ -102,6 +113,14 @@ internal sealed class ChatSessionController : IDisposable
 
         return;
       }
+
+      if (isClarificationReply)
+      {
+        AddMessage(ChatRole.Assistant, "I couldn't apply that clarification to the pending Rhino action. Try a specific value like `10mm` or restate the full request.");
+        return;
+      }
+
+      _pendingClarificationPrompt = null;
 
       var settings = _settingsProvider();
       if (!settings.HasApiKey)
@@ -172,5 +191,20 @@ internal sealed class ChatSessionController : IDisposable
 
     _state = next;
     StateChanged?.Invoke(_state);
+  }
+
+  private static bool LooksLikeClarificationReply(string text)
+  {
+    var trimmed = (text ?? string.Empty).Trim();
+    if (trimmed.Length == 0 || trimmed.Length > 80)
+      return false;
+
+    if (Regex.IsMatch(trimmed, @"^\d+(?:\.\d+)?\s*(?:mm|cm|m|in|inch|inches)?$", RegexOptions.IgnoreCase))
+      return true;
+
+    if (Regex.IsMatch(trimmed, @"^(?:yes|no|centered|centred|solid|open|cap|uncapped)$", RegexOptions.IgnoreCase))
+      return true;
+
+    return !Regex.IsMatch(trimmed, @"\b(rect(?:angle)?|extrud\w*|fillet|circle|cylinder|create|make|draw|what|how|why)\b", RegexOptions.IgnoreCase);
   }
 }

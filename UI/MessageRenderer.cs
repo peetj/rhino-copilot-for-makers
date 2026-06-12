@@ -121,6 +121,14 @@ internal sealed class MessageRenderer
         MutedText,
         UserBubbleStroke,
         UserBubbleCornerRadius);
+
+      if (_currentContentWidth > 0 && bubbleControl is SpeechBubbleDrawable sizedBubble)
+      {
+        var bubbleWidth = Math.Max(
+          MinimumBubbleWidth,
+          _currentContentWidth - RowLeftPadding - RowRightPadding - BubbleSideGutter);
+        sizedBubble.SetMaxBubbleWidth(Math.Max(MinimumBubbleWidth, (int)Math.Round(bubbleWidth * UserBubbleMaxWidthRatio)));
+      }
     }
 
     // IMPORTANT: the container MUST expand full width, otherwise "right aligned" rows
@@ -145,7 +153,7 @@ internal sealed class MessageRenderer
     }
 
     _resizableBubbles.Add(bubbleControl);
-    _messagesStack.Items.Add(new StackLayoutItem(row) { HorizontalAlignment = HorizontalAlignment.Stretch });
+    _messagesStack.Items.Add(new StackLayoutItem(row, expand: false) { HorizontalAlignment = HorizontalAlignment.Stretch });
 
     if (_currentContentWidth > 0)
       UpdateViewportWidth(_currentContentWidth + ContentViewportInset);
@@ -460,6 +468,7 @@ internal sealed class MessageRenderer
       _textColor = textColor;
       _borderColor = borderColor;
       _cornerRadius = cornerRadius;
+      SetMaxBubbleWidth(320);
     }
 
     public void SetMaxBubbleWidth(int width)
