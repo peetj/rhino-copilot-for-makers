@@ -65,6 +65,16 @@ internal sealed class ChatSessionController : IDisposable
 
   public void RunNextPlanStep() => _planExecutionCoordinator.RequestRunNextStep();
 
+  public void ClearConversation()
+  {
+    _cts?.Cancel();
+    _cts?.Dispose();
+    _cts = null;
+    _history.Clear();
+    _planExecutionCoordinator.Reset();
+    UpdateState(isBusy: false, statusText: "");
+  }
+
   public async Task SendAsync(string text)
   {
     if (string.IsNullOrWhiteSpace(text))

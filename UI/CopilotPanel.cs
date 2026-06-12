@@ -14,6 +14,10 @@ namespace RhinoCopilotForMakers.UI;
 [Guid("2D640F2D-0E52-4DD0-8B9C-6D1C6A4E6B35")]
 public sealed class CopilotPanel : Panel
 {
+  private const string WelcomeMessage =
+    "Hi — ask me anything about Rhino 8 product-design workflows. " +
+    "I can suggest safe step-by-step actions and copyable Rhino commands.";
+
   private readonly ChatSessionController _chatSession;
   private readonly MessageRenderer _messageRenderer;
   private readonly StackLayout _messagesStack;
@@ -151,6 +155,8 @@ public sealed class CopilotPanel : Panel
 
     var settingsBtn = new LinkButton { Text = "⚙", ToolTip = "Settings" };
     settingsBtn.Click += (_, _) => ShowSettingsDialog();
+    var resetBtn = new LinkButton { Text = "Reset", ToolTip = "Clear conversation" };
+    resetBtn.Click += (_, _) => ResetConversation();
 
     Content = new DynamicLayout
     {
@@ -166,6 +172,7 @@ public sealed class CopilotPanel : Panel
       {
         new Label { Text = "Rhino Copilot for Makers", Font = new Font(SystemFont.Bold, 11.5f), Wrap = WrapMode.Word },
         null,
+        resetBtn,
         settingsBtn
       }
     });
@@ -178,10 +185,7 @@ public sealed class CopilotPanel : Panel
     _chatSession.StateChanged += OnSessionStateChanged;
     _chatSession.PlanStateChanged += OnPlanStateChanged;
 
-    _chatSession.AddLocalAssistantMessage(
-      "Hi — ask me anything about Rhino 8 product-design workflows. " +
-      "I can suggest safe step-by-step actions and copyable Rhino commands."
-    );
+    _chatSession.AddLocalAssistantMessage(WelcomeMessage);
   }
 
   private void ClampContentWidth()
@@ -247,4 +251,11 @@ public sealed class CopilotPanel : Panel
 
   private void ShowSettingsDialog() =>
     CopilotSettingsDialog.Show(this, RhinoCopilotPlugin.Instance!.CopilotSettings);
+
+  private void ResetConversation()
+  {
+    _chatSession.ClearConversation();
+    _messageRenderer.ClearMessages();
+    _chatSession.AddLocalAssistantMessage(WelcomeMessage);
+  }
 }
