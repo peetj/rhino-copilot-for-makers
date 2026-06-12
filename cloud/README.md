@@ -32,16 +32,12 @@ This folder is the future Cloudflare-hosted orchestration layer for Rhino Copilo
 
 Create `cloud/.env` from `cloud/.env.example`.
 
-Recommended plugin-facing variables:
-
-- `CLOUDFLARE_WORKER_URL`
-- `PLUGIN_SHARED_SECRET`
-
 Recommended worker-side secrets:
 
 - `OPENAI_API_KEY`
 - `OPENAI_BASE_URL`
 - `OPENAI_MODEL`
+- `PLUGIN_SHARED_SECRET`
 
 Recommended local Worker dev file:
 
@@ -49,10 +45,16 @@ Recommended local Worker dev file:
 
 Notes:
 
+- `CLOUDFLARE_WORKER_URL` is produced after deploy and then fed into the plugin config.
 - If you already use `wrangler`, you typically do not need `CLOUDFLARE_ACCOUNT_ID` or `CLOUDFLARE_API_TOKEN` in this repo.
 - Those credentials normally come from your existing Wrangler auth/session.
 - The OpenAI key should usually live in Worker secrets or `.dev.vars`, not in the committed env template.
 
 ## Current status
 
-This is a scaffold only. The repo does not yet contain the deployed Cloudflare worker implementation.
+The repo now contains a minimal Cloudflare worker scaffold:
+
+- `GET /health`
+- `POST /turn`
+
+The current `/turn` route is an orchestrator stub only. Planner, critic, and execution compiler logic are not implemented yet.
