@@ -22,7 +22,11 @@ internal sealed class HeuristicIntentInterpreter : IIntentInterpreter
     "create", "make", "draw", "put", "place", "solid", "diameter", "origin"
   };
 
-  public Task<IntentInterpretationPayload?> TryInterpretAsync(string userText, RhinoContextSnapshot context, CancellationToken cancellationToken)
+  public Task<IntentInterpretationPayload?> TryInterpretAsync(
+    string userText,
+    RhinoContextSnapshot context,
+    IReadOnlyList<ChatMessage> history,
+    CancellationToken cancellationToken)
   {
     if (string.IsNullOrWhiteSpace(userText))
       return Task.FromResult<IntentInterpretationPayload?>(null);

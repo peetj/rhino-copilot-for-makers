@@ -97,7 +97,10 @@ internal sealed class ChatSessionController : IDisposable
       var interpretationText = isClarificationReply
         ? $"{_pendingClarificationPrompt}\nClarification: {text}"
         : text;
-      var interpretation = await _intentInterpreter.TryInterpretAsync(interpretationText, context, _cts.Token);
+      var interpretationHistory = _history
+        .Where(m => m.Role is ChatRole.User or ChatRole.Assistant)
+        .ToList();
+      var interpretation = await _intentInterpreter.TryInterpretAsync(interpretationText, context, interpretationHistory, _cts.Token);
       var mockResponse = MockPlanFactory.TryCreate(interpretation, context);
       if (mockResponse is not null)
       {
@@ -129,7 +132,7 @@ internal sealed class ChatSessionController : IDisposable
         {
           AddMessage(
             ChatRole.Assistant,
-            "I can't execute that locally yet. Current local execution covers rectangle, circle, fillet-corners, and extrude workflows. For broader Rhino actions, add an API key or extend the local executor.");
+            "I can't execute that locally yet. Current local execution is a safety fallback. For broader Rhino language understanding and command interpretation, configure an API key so the cloud interpreter can route the request.");
         }
         else
         {

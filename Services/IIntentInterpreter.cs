@@ -7,5 +7,9 @@ namespace RhinoCopilotForMakers.Services;
 
 internal interface IIntentInterpreter
 {
-  Task<IntentInterpretationPayload?> TryInterpretAsync(string userText, RhinoContextSnapshot context, CancellationToken cancellationToken);
+  Task<IntentInterpretationPayload?> TryInterpretAsync(
+    string userText,
+    RhinoContextSnapshot context,
+    IReadOnlyList<ChatMessage> history,
+    CancellationToken cancellationToken);
 }

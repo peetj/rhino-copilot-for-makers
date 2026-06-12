@@ -15,11 +15,15 @@ internal sealed class CompositeIntentInterpreter : IIntentInterpreter
     _interpreters = interpreters;
   }
 
-  public async Task<IntentInterpretationPayload?> TryInterpretAsync(string userText, RhinoContextSnapshot context, CancellationToken cancellationToken)
+  public async Task<IntentInterpretationPayload?> TryInterpretAsync(
+    string userText,
+    RhinoContextSnapshot context,
+    IReadOnlyList<ChatMessage> history,
+    CancellationToken cancellationToken)
   {
     foreach (var interpreter in _interpreters)
     {
-      var interpretation = await interpreter.TryInterpretAsync(userText, context, cancellationToken);
+      var interpretation = await interpreter.TryInterpretAsync(userText, context, history, cancellationToken);
       if (interpretation is not null)
         return interpretation;
     }
