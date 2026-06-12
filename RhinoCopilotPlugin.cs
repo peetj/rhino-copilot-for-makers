@@ -2,6 +2,7 @@ using System;
 using System.Runtime.InteropServices;
 using Rhino;
 using Rhino.PlugIns;
+using RhinoCopilotForMakers.Services;
 
 namespace RhinoCopilotForMakers;
 
@@ -17,6 +18,8 @@ public sealed class RhinoCopilotPlugin : PlugIn
   {
     Instance = this;
   }
+
+  internal PlanExecutionCoordinator PlanExecutionCoordinator { get; } = new();
 
   /// <summary>
   /// Use Rhino's persistent plugin settings store.

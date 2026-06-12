@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using RhinoCopilotForMakers.Contracts;
 using RhinoCopilotForMakers.Models;
 using RhinoCopilotForMakers.Services;
 using RhinoCopilotForMakers.Settings;
@@ -20,6 +21,7 @@ internal sealed class ChatSessionController : IDisposable
   private readonly LlmClient _llmClient;
   private readonly Func<CopilotSettings> _settingsProvider;
   private readonly Func<string, string> _normalizeAssistantContent;
+  private readonly PlanExecutionCoordinator _planExecutionCoordinator;
   private readonly string _systemPrompt;
 
   private CancellationTokenSource? _cts;
@@ -29,18 +31,24 @@ internal sealed class ChatSessionController : IDisposable
     RhinoContextCollector contextCollector,
     LlmClient llmClient,
     Func<CopilotSettings> settingsProvider,
+    PlanExecutionCoordinator planExecutionCoordinator,
     Func<string, string> normalizeAssistantContent,
     string systemPrompt)
   {
     _contextCollector = contextCollector;
     _llmClient = llmClient;
     _settingsProvider = settingsProvider;
+    _planExecutionCoordinator = planExecutionCoordinator;
     _normalizeAssistantContent = normalizeAssistantContent;
     _systemPrompt = systemPrompt;
+
+    _planExecutionCoordinator.StateChanged += state => PlanStateChanged?.Invoke(state);
+    _planExecutionCoordinator.AssistantMessageGenerated += AddLocalAssistantMessage;
   }
 
   public event Action<ChatMessage>? MessageAdded;
   public event Action<ChatSessionState>? StateChanged;
+  public event Action<PlanExecutionState>? PlanStateChanged;
 
   public IReadOnlyList<ChatMessage> History => _history;
   public ChatSessionState State => _state;
@@ -48,12 +56,29 @@ internal sealed class ChatSessionController : IDisposable
   public void AddLocalAssistantMessage(string content) =>
     AddMessage(ChatRole.Assistant, content);
 
+  public void ApprovePendingPlan() => _planExecutionCoordinator.ApprovePlan();
+
+  public void RejectPendingPlan() => _planExecutionCoordinator.RejectPlan();
+
+  public void RunNextPlanStep() => _planExecutionCoordinator.RequestRunNextStep();
+
   public async Task SendAsync(string text)
   {
     if (string.IsNullOrWhiteSpace(text))
       return;
 
     AddMessage(ChatRole.User, text);
+
+    var context = _contextCollector.Collect();
+    var mockResponse = MockPlanFactory.TryCreate(text, context);
+    if (mockResponse is not null)
+    {
+      if (mockResponse.Message is not null)
+        AddMessage(ChatRole.Assistant, mockResponse.Message.Text);
+
+      _planExecutionCoordinator.LoadPlan(mockResponse);
+      return;
+    }
 
     var settings = _settingsProvider();
     if (!settings.HasApiKey)
@@ -70,7 +95,6 @@ internal sealed class ChatSessionController : IDisposable
 
     try
     {
-      var context = _contextCollector.Collect();
       var historyForApi = _history
         .Where(m => m.Role is ChatRole.User or ChatRole.Assistant)
         .ToList();
