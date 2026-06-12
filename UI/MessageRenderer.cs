@@ -138,18 +138,19 @@ internal sealed class MessageRenderer
     {
       Orientation = Orientation.Horizontal,
       Spacing = 0,
-      Padding = new Padding(RowLeftPadding, 0, RowRightPadding, 0)
+      Padding = new Padding(RowLeftPadding, 0, RowRightPadding, 0),
+      VerticalContentAlignment = VerticalAlignment.Top
     };
 
     if (isAssistant)
     {
-      row.Items.Add(bubbleControl);
+      row.Items.Add(new StackLayoutItem(bubbleControl, expand: false));
       row.Items.Add(new StackLayoutItem(null, expand: true));
     }
     else
     {
       row.Items.Add(new StackLayoutItem(null, expand: true));
-      row.Items.Add(bubbleControl);
+      row.Items.Add(new StackLayoutItem(bubbleControl, expand: false));
     }
 
     _resizableBubbles.Add(bubbleControl);
@@ -475,8 +476,12 @@ internal sealed class MessageRenderer
     {
       _maxBubbleWidth = Math.Max(MinimumBubbleWidth, width);
       var desiredWidth = MeasureDesiredWidth();
-      Width = Math.Min(_maxBubbleWidth, desiredWidth);
-      Height = MeasureHeight(Width);
+      var resolvedWidth = Math.Min(_maxBubbleWidth, desiredWidth);
+      var resolvedHeight = MeasureHeight(resolvedWidth);
+      Width = resolvedWidth;
+      Height = resolvedHeight;
+      Size = new Size(resolvedWidth, resolvedHeight);
+      MinimumSize = new Size(resolvedWidth, resolvedHeight);
       Invalidate();
     }
 

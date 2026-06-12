@@ -125,7 +125,17 @@ internal sealed class ChatSessionController : IDisposable
       var settings = _settingsProvider();
       if (!settings.HasApiKey)
       {
-        AddMessage(ChatRole.Assistant, "Set your API key first: click Settings -> paste key -> Save. (It is stored locally in Rhino plugin settings.)");
+        if (LooksLikeRhinoExecutionRequest(text))
+        {
+          AddMessage(
+            ChatRole.Assistant,
+            "I can't execute that locally yet. Current local execution covers rectangle, fillet-corners, and extrude workflows. For broader Rhino actions, add an API key or extend the local executor.");
+        }
+        else
+        {
+          AddMessage(ChatRole.Assistant, "Set your API key first: click Settings -> paste key -> Save. (It is stored locally in Rhino plugin settings.)");
+        }
+
         return;
       }
 
@@ -206,5 +216,17 @@ internal sealed class ChatSessionController : IDisposable
       return true;
 
     return !Regex.IsMatch(trimmed, @"\b(rect(?:angle)?|extrud\w*|fillet|circle|cylinder|create|make|draw|what|how|why)\b", RegexOptions.IgnoreCase);
+  }
+
+  private static bool LooksLikeRhinoExecutionRequest(string text)
+  {
+    var trimmed = (text ?? string.Empty).Trim();
+    if (trimmed.Length == 0)
+      return false;
+
+    return Regex.IsMatch(
+      trimmed,
+      @"\b(create|make|draw|put|place|add|move|rotate|scale|extrud\w*|fillet|boolean|offset|loft|sweep|patch|sphere|box|cylinder|rectangle|circle|line|surface|solid|hole|mount|clip)\b",
+      RegexOptions.IgnoreCase);
   }
 }
