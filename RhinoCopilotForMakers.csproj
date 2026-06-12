@@ -47,6 +47,7 @@
       <RhinoCopilotCommitSha Condition="'$(RhinoCopilotCommitSha)' == ''">nogit</RhinoCopilotCommitSha>
       <RhinoCopilotShortSha>$([System.String]::Copy('$(RhinoCopilotCommitSha)').Substring(0, $([System.Math]::Min(8, $(RhinoCopilotCommitSha.Length)))))</RhinoCopilotShortSha>
       <RhinoCopilotBuildVersion>$(RhinoCopilotBuildStamp)_$(Configuration)_$(RhinoCopilotShortSha)</RhinoCopilotBuildVersion>
+      <InformationalVersion>$(RhinoCopilotBuildVersion)</InformationalVersion>
     </PropertyGroup>
 
     <ItemGroup>

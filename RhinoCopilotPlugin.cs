@@ -61,7 +61,9 @@ public sealed class RhinoCopilotPlugin : PlugIn
     };
     RhinoApp.Idle += handler;
 
-    RhinoApp.WriteLine($"Rhino Copilot for Makers loaded. Build: {GetBuildVersion()}");
+    var assembly = typeof(RhinoCopilotPlugin).Assembly;
+    RhinoApp.WriteLine(
+      $"Rhino Copilot for Makers loaded. Build: {GetBuildVersion(assembly)} Path: {assembly.Location}");
     return LoadReturnCode.Success;
   }
 
@@ -82,10 +84,13 @@ public sealed class RhinoCopilotPlugin : PlugIn
     UI.CopilotPanelHost.OpenInPreferredDock();
   }
 
-  private static string GetBuildVersion()
+  private static string GetBuildVersion(Assembly assembly)
   {
-    var metadata = typeof(RhinoCopilotPlugin).Assembly
-      .GetCustomAttributes<AssemblyMetadataAttribute>();
+    var informational = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+    if (!string.IsNullOrWhiteSpace(informational))
+      return informational!;
+
+    var metadata = assembly.GetCustomAttributes<AssemblyMetadataAttribute>();
 
     foreach (var entry in metadata)
     {
@@ -93,6 +98,6 @@ public sealed class RhinoCopilotPlugin : PlugIn
         return entry.Value ?? "unknown";
     }
 
-    return "unknown";
+    return assembly.GetName().Version?.ToString() ?? "unknown";
   }
 }
