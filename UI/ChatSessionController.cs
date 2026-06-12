@@ -22,6 +22,7 @@ internal sealed class ChatSessionController : IDisposable
   private readonly Func<CopilotSettings> _settingsProvider;
   private readonly Func<string, string> _normalizeAssistantContent;
   private readonly PlanExecutionCoordinator _planExecutionCoordinator;
+  private readonly IIntentInterpreter _intentInterpreter;
   private readonly string _systemPrompt;
 
   private CancellationTokenSource? _cts;
@@ -32,6 +33,7 @@ internal sealed class ChatSessionController : IDisposable
     LlmClient llmClient,
     Func<CopilotSettings> settingsProvider,
     PlanExecutionCoordinator planExecutionCoordinator,
+    IIntentInterpreter intentInterpreter,
     Func<string, string> normalizeAssistantContent,
     string systemPrompt)
   {
@@ -39,6 +41,7 @@ internal sealed class ChatSessionController : IDisposable
     _llmClient = llmClient;
     _settingsProvider = settingsProvider;
     _planExecutionCoordinator = planExecutionCoordinator;
+    _intentInterpreter = intentInterpreter;
     _normalizeAssistantContent = normalizeAssistantContent;
     _systemPrompt = systemPrompt;
 
@@ -70,7 +73,8 @@ internal sealed class ChatSessionController : IDisposable
     AddMessage(ChatRole.User, text);
 
     var context = _contextCollector.Collect();
-    var mockResponse = MockPlanFactory.TryCreate(text, context);
+    var interpretation = _intentInterpreter.TryInterpret(text, context);
+    var mockResponse = MockPlanFactory.TryCreate(interpretation, context);
     if (mockResponse is not null)
     {
       if (mockResponse.Message is not null)

@@ -9,12 +9,6 @@ namespace RhinoCopilotForMakers.Services;
 
 internal static class MockPlanFactory
 {
-  public static TurnResponse? TryCreate(string userText, RhinoContextSnapshot context)
-  {
-    var interpretation = LocalIntentInterpreter.TryInterpret(userText, context);
-    return TryCreate(interpretation, context);
-  }
-
   public static TurnResponse? TryCreate(IntentInterpretationPayload? interpretation, RhinoContextSnapshot context)
   {
     if (interpretation is null)

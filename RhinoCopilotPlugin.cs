@@ -20,6 +20,9 @@ public sealed class RhinoCopilotPlugin : PlugIn
   }
 
   internal PlanExecutionCoordinator PlanExecutionCoordinator { get; } = new();
+  internal IIntentInterpreter IntentInterpreter { get; } =
+    new CompositeIntentInterpreter(
+      new HeuristicIntentInterpreter());
 
   /// <summary>
   /// Use Rhino's persistent plugin settings store.

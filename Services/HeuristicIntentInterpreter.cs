@@ -8,9 +8,9 @@ using RhinoCopilotForMakers.Models;
 
 namespace RhinoCopilotForMakers.Services;
 
-internal static class LocalIntentInterpreter
+internal sealed class HeuristicIntentInterpreter : IIntentInterpreter
 {
-  public static IntentInterpretationPayload? TryInterpret(string userText, RhinoContextSnapshot context)
+  public IntentInterpretationPayload? TryInterpret(string userText, RhinoContextSnapshot context)
   {
     if (string.IsNullOrWhiteSpace(userText))
       return null;

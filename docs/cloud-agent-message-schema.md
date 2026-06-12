@@ -148,4 +148,6 @@ This is the main safety boundary of the system.
 
 - C# DTOs: `Contracts/CopilotWireProtocol.cs`
 - TypeScript interfaces: `contracts/rhino-copilot-protocol.ts`
-- Local interpreter POC: `Services/LocalIntentInterpreter.cs`
+- Interpreter interface: `Services/IIntentInterpreter.cs`
+- Default heuristic implementation: `Services/HeuristicIntentInterpreter.cs`
+- Fallback chain: `Services/CompositeIntentInterpreter.cs`

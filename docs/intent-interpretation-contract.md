@@ -59,6 +59,8 @@ The current local implementation is heuristic and supports rectangle-oriented wo
 - optional `fillet`
 - optional `extrude`
 
-File:
+Files:
 
-- `Services/LocalIntentInterpreter.cs`
+- `Services/IIntentInterpreter.cs`
+- `Services/HeuristicIntentInterpreter.cs`
+- `Services/FixedIntentInterpreter.cs`

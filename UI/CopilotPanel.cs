@@ -48,6 +48,7 @@ public sealed class CopilotPanel : Panel
       new LlmClient(new HttpClient()),
       () => RhinoCopilotPlugin.Instance!.CopilotSettings,
       RhinoCopilotPlugin.Instance!.PlanExecutionCoordinator,
+      RhinoCopilotPlugin.Instance!.IntentInterpreter,
       MessageFormatter.NormalizeCommandBlocks,
       SystemPrompt);
 
