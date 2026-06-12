@@ -76,7 +76,9 @@ internal sealed class ChatSessionController : IDisposable
       if (mockResponse.Message is not null)
         AddMessage(ChatRole.Assistant, mockResponse.Message.Text);
 
-      _planExecutionCoordinator.LoadPlan(mockResponse);
+      if (mockResponse.Plan is not null)
+        _planExecutionCoordinator.LoadPlan(mockResponse);
+
       return;
     }
 

@@ -102,6 +102,15 @@ public enum AllowedCommandState
   Always
 }
 
+[JsonConverter(typeof(SnakeCaseEnumJsonConverter<ExecutionReadiness>))]
+public enum ExecutionReadiness
+{
+  InformationalOnly,
+  ReadyToPlan,
+  NeedsClarification,
+  Unsafe
+}
+
 public sealed record TenantRef(
   [property: JsonPropertyName("tenant_id")] string TenantId);
 
@@ -174,6 +183,30 @@ public sealed record MissingInputPayload(
   [property: JsonPropertyName("unit")] string? Unit = null,
   [property: JsonPropertyName("required")] bool Required = true);
 
+public sealed record InterpretedParameterPayload(
+  [property: JsonPropertyName("name")] string Name,
+  [property: JsonPropertyName("value")] object? Value,
+  [property: JsonPropertyName("unit")] string? Unit = null,
+  [property: JsonPropertyName("source_text")] string? SourceText = null,
+  [property: JsonPropertyName("confidence")] double? Confidence = null);
+
+public sealed record InterpretedOperationPayload(
+  [property: JsonPropertyName("operation_id")] string OperationId,
+  [property: JsonPropertyName("action")] string Action,
+  [property: JsonPropertyName("target")] string Target,
+  [property: JsonPropertyName("depends_on")] IReadOnlyList<string> DependsOn,
+  [property: JsonPropertyName("parameters")] IReadOnlyList<InterpretedParameterPayload> Parameters,
+  [property: JsonPropertyName("confidence")] double? Confidence = null,
+  [property: JsonPropertyName("can_execute_deterministically")] bool CanExecuteDeterministically = false);
+
+public sealed record IntentInterpretationPayload(
+  [property: JsonPropertyName("primary_intent")] string PrimaryIntent,
+  [property: JsonPropertyName("execution_readiness")] ExecutionReadiness ExecutionReadiness,
+  [property: JsonPropertyName("confidence")] double? Confidence = null,
+  [property: JsonPropertyName("operations")] IReadOnlyList<InterpretedOperationPayload>? Operations = null,
+  [property: JsonPropertyName("missing_inputs")] IReadOnlyList<MissingInputPayload>? MissingInputs = null,
+  [property: JsonPropertyName("assumptions")] IReadOnlyList<string>? Assumptions = null);
+
 public sealed record StepConditionPayload(
   [property: JsonPropertyName("type")] string Type,
   [property: JsonPropertyName("required")] bool? Required = null,
@@ -232,6 +265,7 @@ public sealed record TurnResponse(
   [property: JsonPropertyName("turn_id")] string TurnId,
   [property: JsonPropertyName("routing")] RoutingPayload? Routing = null,
   [property: JsonPropertyName("message")] AssistantMessagePayload? Message = null,
+  [property: JsonPropertyName("interpretation")] IntentInterpretationPayload? Interpretation = null,
   [property: JsonPropertyName("missing_inputs")] IReadOnlyList<MissingInputPayload>? MissingInputs = null,
   [property: JsonPropertyName("plan")] ExecutionPlanPayload? Plan = null,
   [property: JsonPropertyName("step")] ExecutionStepPayload? Step = null,
