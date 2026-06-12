@@ -16,7 +16,7 @@ internal static class MockPlanFactory
       return null;
 
     var normalized = userText.Trim().ToLowerInvariant();
-    if (!normalized.Contains("rectangle"))
+    if (!HasRectangleIntent(normalized))
       return null;
 
     var widthHeight = TryParseRectangleSize(userText);
@@ -249,6 +249,9 @@ internal static class MockPlanFactory
   private static string SelectionToken(string stepId) => $"__STEP_RESULT__:{stepId}";
 
   private static int NextSequence(IReadOnlyCollection<ExecutionStepPayload> steps) => steps.Count + 1;
+
+  private static bool HasRectangleIntent(string normalizedText) =>
+    Regex.IsMatch(normalizedText, @"\brect(?:angle)?\b", RegexOptions.IgnoreCase);
 
   private static (double Width, double Height)? TryParseRectangleSize(string text)
   {
