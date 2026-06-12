@@ -1,7 +1,9 @@
 using System;
+using System.Net.Http;
 using System.Runtime.InteropServices;
 using Rhino;
 using Rhino.PlugIns;
+using RhinoCopilotForMakers.Services;
 
 namespace RhinoCopilotForMakers;
 
@@ -16,7 +18,14 @@ public sealed class RhinoCopilotPlugin : PlugIn
   public RhinoCopilotPlugin()
   {
     Instance = this;
+    IntentInterpreter = new CompositeIntentInterpreter(
+      new CloudIntentInterpreter(LlmClient, () => CopilotSettings),
+      new HeuristicIntentInterpreter());
   }
+
+  internal PlanExecutionCoordinator PlanExecutionCoordinator { get; } = new();
+  internal LlmClient LlmClient { get; } = new(new HttpClient());
+  internal IIntentInterpreter IntentInterpreter { get; }
 
   /// <summary>
   /// Use Rhino's persistent plugin settings store.

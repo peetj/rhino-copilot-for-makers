@@ -74,7 +74,7 @@ internal sealed class MessageRenderer
       var copyIcon = new Label
       {
         Text = "⧉",
-        ToolTip = "Copy",
+        ToolTip = "Copy response",
         TextColor = Color.FromArgb(180, 180, 180)
       };
       copyIcon.MouseDown += (_, _) => Clipboard.Instance.Text = getCopyText();
@@ -164,13 +164,19 @@ internal sealed class MessageRenderer
       TextColor = Colors.Gray,
       Wrap = WrapMode.Word
     };
+    var copyIcon = new Label
+    {
+      Text = "⧉",
+      ToolTip = "Copy commands",
+      TextColor = Color.FromArgb(180, 180, 180)
+    };
 
     var header = new StackLayout
     {
       Orientation = Orientation.Horizontal,
       Spacing = 6,
       HorizontalContentAlignment = HorizontalAlignment.Stretch,
-      Items = { chevron, new StackLayoutItem(summary, expand: true) }
+      Items = { chevron, new StackLayoutItem(summary, expand: true), copyIcon }
     };
 
     var codeLabel = new Label
@@ -201,6 +207,7 @@ internal sealed class MessageRenderer
     }
 
     header.MouseDown += (_, _) => Toggle();
+    copyIcon.MouseDown += (_, _) => Clipboard.Instance.Text = trimmed;
 
     return new StackLayout
     {

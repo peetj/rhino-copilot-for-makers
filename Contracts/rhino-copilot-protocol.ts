@@ -40,6 +40,11 @@ export type StepEventType =
   | "cancelled";
 export type FinalStatus = "completed" | "failed" | "cancelled";
 export type AllowedCommandState = "idle_only" | "always";
+export type ExecutionReadiness =
+  | "informational_only"
+  | "ready_to_plan"
+  | "needs_clarification"
+  | "unsafe";
 
 export interface TenantRef {
   tenant_id: string;
@@ -125,6 +130,33 @@ export interface MissingInputPayload {
   required: boolean;
 }
 
+export interface InterpretedParameterPayload {
+  name: string;
+  value: unknown;
+  unit?: string | null;
+  source_text?: string | null;
+  confidence?: number | null;
+}
+
+export interface InterpretedOperationPayload {
+  operation_id: string;
+  action: string;
+  target: string;
+  depends_on: string[];
+  parameters: InterpretedParameterPayload[];
+  confidence?: number | null;
+  can_execute_deterministically: boolean;
+}
+
+export interface IntentInterpretationPayload {
+  primary_intent: string;
+  execution_readiness: ExecutionReadiness;
+  confidence?: number | null;
+  operations?: InterpretedOperationPayload[] | null;
+  missing_inputs?: MissingInputPayload[] | null;
+  assumptions?: string[] | null;
+}
+
 export interface StepConditionPayload {
   type: string;
   required?: boolean | null;
@@ -190,6 +222,7 @@ export interface TurnResponse {
   turn_id: string;
   routing?: RoutingPayload | null;
   message?: AssistantMessagePayload | null;
+  interpretation?: IntentInterpretationPayload | null;
   missing_inputs?: MissingInputPayload[] | null;
   plan?: ExecutionPlanPayload | null;
   step?: ExecutionStepPayload | null;

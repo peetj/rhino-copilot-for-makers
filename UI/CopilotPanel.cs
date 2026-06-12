@@ -1,5 +1,4 @@
 using System;
-using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Eto.Drawing;
@@ -10,8 +9,7 @@ using RhinoCopilotForMakers.Services;
 namespace RhinoCopilotForMakers.UI;
 
 /// <summary>
-/// Dockable Eto panel implementing the chat UI.
-/// Guidance-only: does not execute commands or modify geometry.
+/// Dockable Eto panel implementing the chat UI and approved plan controls.
 /// </summary>
 [Guid("2D640F2D-0E52-4DD0-8B9C-6D1C6A4E6B35")]
 public sealed class CopilotPanel : Panel
@@ -23,6 +21,12 @@ public sealed class CopilotPanel : Panel
   private readonly TextArea _input;
   private readonly Button _send;
   private readonly Label _status;
+  private readonly Panel _planPanel;
+  private readonly Label _planTitle;
+  private readonly Label _planDetail;
+  private readonly Button _approvePlan;
+  private readonly Button _rejectPlan;
+  private readonly Button _runNextStep;
 
   // System prompt required by spec.
   private const string SystemPrompt =
@@ -40,8 +44,10 @@ public sealed class CopilotPanel : Panel
 
     _chatSession = new ChatSessionController(
       new RhinoContextCollector(),
-      new LlmClient(new HttpClient()),
+      RhinoCopilotPlugin.Instance!.LlmClient,
       () => RhinoCopilotPlugin.Instance!.CopilotSettings,
+      RhinoCopilotPlugin.Instance!.PlanExecutionCoordinator,
+      RhinoCopilotPlugin.Instance!.IntentInterpreter,
       MessageFormatter.NormalizeCommandBlocks,
       SystemPrompt);
 
@@ -72,6 +78,57 @@ public sealed class CopilotPanel : Panel
       Font = new Font(SystemFont.Default, 9),
       TextColor = Colors.Gray,
       Visible = false
+    };
+
+    _planTitle = new Label
+    {
+      Font = new Font(SystemFont.Bold, 9.5f),
+      Wrap = WrapMode.Word
+    };
+
+    _planDetail = new Label
+    {
+      Font = new Font(SystemFont.Default, 9),
+      Wrap = WrapMode.Word,
+      TextColor = Colors.Gray
+    };
+
+    _approvePlan = new Button { Text = "Approve Plan" };
+    _approvePlan.Click += (_, _) => _chatSession.ApprovePendingPlan();
+
+    _rejectPlan = new Button { Text = "Reject" };
+    _rejectPlan.Click += (_, _) => _chatSession.RejectPendingPlan();
+
+    _runNextStep = new Button { Text = "Run Next Step" };
+    _runNextStep.Click += (_, _) => _chatSession.RunNextPlanStep();
+
+    _planPanel = new Panel
+    {
+      Visible = false,
+      Padding = new Padding(10),
+      BackgroundColor = Color.FromArgb(247, 247, 247),
+      Content = new StackLayout
+      {
+        Orientation = Orientation.Vertical,
+        Spacing = 6,
+        Items =
+        {
+          _planTitle,
+          _planDetail,
+          new StackLayout
+          {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            Items =
+            {
+              _approvePlan,
+              _rejectPlan,
+              _runNextStep,
+              null
+            }
+          }
+        }
+      }
     };
 
     _input = new TextArea
@@ -114,10 +171,12 @@ public sealed class CopilotPanel : Panel
     });
     layout.Add(_scroll, yscale: true);
     layout.AddRow(_status);
+    layout.AddRow(_planPanel);
     layout.AddRow(_input);
 
     _chatSession.MessageAdded += OnSessionMessageAdded;
     _chatSession.StateChanged += OnSessionStateChanged;
+    _chatSession.PlanStateChanged += OnPlanStateChanged;
 
     _chatSession.AddLocalAssistantMessage(
       "Hi — ask me anything about Rhino 8 product-design workflows. " +
@@ -154,6 +213,36 @@ public sealed class CopilotPanel : Panel
   {
     var isAssistant = message.Role == ChatRole.Assistant;
     _messageRenderer.AddMessageBubble(message.Content, isAssistant);
+  }
+
+  private void OnPlanStateChanged(PlanExecutionState state)
+  {
+    Application.Instance.AsyncInvoke(() =>
+    {
+      var isVisible = state.Phase != PlanExecutionPhase.Idle;
+      _planPanel.Visible = isVisible;
+      if (!isVisible)
+      {
+        _planTitle.Text = "";
+        _planDetail.Text = "";
+        return;
+      }
+
+      _planTitle.Text = state.Title;
+      var progressText = state.TotalSteps > 0
+        ? $"Progress: {state.CompletedSteps}/{state.TotalSteps}"
+        : "";
+      _planDetail.Text = string.IsNullOrWhiteSpace(progressText)
+        ? state.Detail
+        : $"{state.Detail}\n{progressText}";
+
+      _approvePlan.Visible = state.CanApprove;
+      _rejectPlan.Visible = state.CanReject;
+      _runNextStep.Visible = state.CanRunNextStep;
+      _runNextStep.Text = state.NextStepLabel is null ? "Run Next Step" : $"Run {state.NextStepLabel}";
+
+      _planPanel.Invalidate();
+    });
   }
 
   private void ShowSettingsDialog() =>

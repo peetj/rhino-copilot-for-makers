@@ -11,6 +11,7 @@ The contract is intentionally plan-oriented. Simple one-shot command requests ar
 
 - The Rhino plugin is the only trusted executor.
 - Cloud may propose plans and steps, but it cannot directly mutate Rhino.
+- A dedicated interpretation stage must normalize free-text prompts before planning or execution.
 - Each user turn is first routed into one of:
   - `informational`
   - `clarifying`
@@ -53,6 +54,26 @@ Cloud returns one of:
 Main type:
 
 - `TurnResponse`
+
+### 2a. Interpretation payload
+
+Before any Rhino execution is allowed, the interpreter must return:
+
+- `primary_intent`
+- `execution_readiness`
+- `confidence`
+- `operations`
+- `missing_inputs`
+- `assumptions`
+
+This payload now lives on `TurnResponse.interpretation`.
+
+Execution policy:
+
+- `ready_to_plan`: planner may build executable steps
+- `needs_clarification`: plugin must not execute; ask for missing values
+- `informational_only`: answer normally without execution
+- `unsafe`: reject or escalate
 
 ### 3. Approval
 
@@ -127,3 +148,7 @@ This is the main safety boundary of the system.
 
 - C# DTOs: `Contracts/CopilotWireProtocol.cs`
 - TypeScript interfaces: `contracts/rhino-copilot-protocol.ts`
+- Interpreter interface: `Services/IIntentInterpreter.cs`
+- Cloud-backed interpreter: `Services/CloudIntentInterpreter.cs`
+- Default heuristic implementation: `Services/HeuristicIntentInterpreter.cs`
+- Fallback chain: `Services/CompositeIntentInterpreter.cs`
