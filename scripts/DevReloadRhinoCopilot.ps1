@@ -16,9 +16,6 @@ try {
     throw "Build failed."
   }
 
-  Write-Host "Installing latest .rhp into Rhino plug-ins folder..."
-  & "$PSScriptRoot\InstallToRhino8.ps1" -Configuration $Configuration
-
   if (-not (Test-Path -LiteralPath $RhinoExe)) {
     throw "Rhino.exe not found at '$RhinoExe'."
   }
@@ -30,10 +27,13 @@ try {
     Start-Sleep -Seconds 2
   }
   elseif ($running) {
-    Write-Host "Rhino is already running. Re-run with -RestartRhino to relaunch into the updated plug-in automatically."
-    Write-Host "Build/install completed."
+    Write-Host "Rhino is already running. Re-run with -RestartRhino so the plug-in file can be updated safely."
+    Write-Host "Build completed. Install was skipped because the target .rhp is likely locked by Rhino."
     return
   }
+
+  Write-Host "Installing latest .rhp into Rhino plug-ins folder..."
+  & "$PSScriptRoot\InstallToRhino8.ps1" -Configuration $Configuration
 
   $flagPath = Join-Path $env:TEMP 'rhino-copilot-auto-open.flag'
   New-Item -ItemType File -Force -Path $flagPath | Out-Null

@@ -23,6 +23,13 @@ New-Item -ItemType Directory -Force -Path $destDir | Out-Null
 $destFile = Join-Path $destDir $rhp.Name
 Copy-Item -Force $rhp.FullName $destFile
 
+$deps = Get-ChildItem -Path $deployRoot -Filter "RhinoCopilotForMakers.deps.json" -Recurse -ErrorAction SilentlyContinue |
+  Sort-Object LastWriteTimeUtc -Descending |
+  Select-Object -First 1
+if ($deps) {
+  Copy-Item -Force $deps.FullName (Join-Path $destDir $deps.Name)
+}
+
 function Update-PluginRegistryPath {
   param(
     [Parameter(Mandatory = $true)][string]$RegistryRoot
@@ -50,6 +57,9 @@ catch {
 
 Write-Host "Installed: $($rhp.FullName) -> $destDir"
 Write-Host "Stable plug-in path: $destFile"
+if ($deps) {
+  Write-Host "Installed deps: $($deps.FullName) -> $destDir"
+}
 if ($updatedHkcu) {
   Write-Host "Updated HKCU Rhino plug-in registration to the stable path."
 }

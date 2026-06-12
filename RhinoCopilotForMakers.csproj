@@ -33,6 +33,10 @@
     <!-- Copy the built DLL to a .rhp in a deploy folder for easy PluginManager install -->
     <MakeDir Directories="$(RhinoPluginDeployDir)" />
     <Copy SourceFiles="$(TargetPath)" DestinationFiles="$(RhinoPluginDeployDir)$(RhinoPluginDeployFileName)" OverwriteReadOnlyFiles="true" />
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).deps.json"
+          DestinationFiles="$(RhinoPluginDeployDir)$(AssemblyName).deps.json"
+          OverwriteReadOnlyFiles="true"
+          Condition="Exists('$(TargetDir)$(AssemblyName).deps.json')" />
   </Target>
 
   <ItemGroup>
