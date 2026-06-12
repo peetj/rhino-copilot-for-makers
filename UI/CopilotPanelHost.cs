@@ -25,13 +25,21 @@ internal static class CopilotPanelHost
     try
     {
       Panels.OpenPanel(PanelIds.Layers);
+      var layersDockBarId = Panels.PanelDockBar(PanelIds.Layers);
+      if (layersDockBarId != Guid.Empty)
+      {
+        Panels.OpenPanel(layersDockBarId, PanelId, true);
+        return;
+      }
+
       var openedAsSibling = Panels.OpenPanelAsSibling(PanelId, PanelIds.Layers, true);
-      if (!openedAsSibling)
-        Panels.OpenPanel(PanelId, true);
+      if (openedAsSibling)
+        return;
     }
     catch
     {
-      Panels.OpenPanel(PanelId, true);
     }
+
+    Panels.OpenPanel(PanelId, true);
   }
 }
