@@ -1,0 +1,8 @@
+name = "rhino-copilot-cloud"
+main = "worker/src/index.ts"
+compatibility_date = "2026-06-12"
+
+[vars]
+SESSION_STORE_KIND = "memory"
+TRACE_STORE_KIND = "memory"
+

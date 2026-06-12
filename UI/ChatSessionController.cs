@@ -1,13 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using RhinoCopilotForMakers.Contracts;
 using RhinoCopilotForMakers.Models;
 using RhinoCopilotForMakers.Services;
-using RhinoCopilotForMakers.Settings;
 
 namespace RhinoCopilotForMakers.UI;
 
@@ -18,32 +17,27 @@ internal sealed class ChatSessionController : IDisposable
 {
   private readonly List<ChatMessage> _history = new();
   private readonly RhinoContextCollector _contextCollector;
-  private readonly LlmClient _llmClient;
-  private readonly Func<CopilotSettings> _settingsProvider;
+  private readonly CopilotCloudClient _cloudClient;
   private readonly Func<string, string> _normalizeAssistantContent;
   private readonly PlanExecutionCoordinator _planExecutionCoordinator;
   private readonly IIntentInterpreter _intentInterpreter;
-  private readonly string _systemPrompt;
 
   private CancellationTokenSource? _cts;
   private ChatSessionState _state = ChatSessionState.Idle;
+  private string? _pendingClarificationPrompt;
 
   public ChatSessionController(
     RhinoContextCollector contextCollector,
-    LlmClient llmClient,
-    Func<CopilotSettings> settingsProvider,
+    CopilotCloudClient cloudClient,
     PlanExecutionCoordinator planExecutionCoordinator,
     IIntentInterpreter intentInterpreter,
-    Func<string, string> normalizeAssistantContent,
-    string systemPrompt)
+    Func<string, string> normalizeAssistantContent)
   {
     _contextCollector = contextCollector;
-    _llmClient = llmClient;
-    _settingsProvider = settingsProvider;
+    _cloudClient = cloudClient;
     _planExecutionCoordinator = planExecutionCoordinator;
     _intentInterpreter = intentInterpreter;
     _normalizeAssistantContent = normalizeAssistantContent;
-    _systemPrompt = systemPrompt;
 
     _planExecutionCoordinator.StateChanged += state => PlanStateChanged?.Invoke(state);
     _planExecutionCoordinator.AssistantMessageGenerated += AddLocalAssistantMessage;
@@ -71,6 +65,7 @@ internal sealed class ChatSessionController : IDisposable
     _cts?.Dispose();
     _cts = null;
     _history.Clear();
+    _pendingClarificationPrompt = null;
     _planExecutionCoordinator.Reset();
     UpdateState(isBusy: false, statusText: "");
   }
@@ -90,10 +85,31 @@ internal sealed class ChatSessionController : IDisposable
 
     try
     {
-      var interpretation = await _intentInterpreter.TryInterpretAsync(text, context, _cts.Token);
+      if (_cloudClient.IsConfigured)
+      {
+        var cloudResponse = await _cloudClient.TrySendTurnAsync(text, context, _history, _cts.Token);
+        if (cloudResponse is not null)
+        {
+          HandleCloudTurnResponse(cloudResponse);
+          return;
+        }
+      }
+
+      var isClarificationReply = _pendingClarificationPrompt is not null && LooksLikeClarificationReply(text);
+      var interpretationText = isClarificationReply
+        ? $"{_pendingClarificationPrompt}\nClarification: {text}"
+        : text;
+      var interpretationHistory = _history
+        .Where(m => m.Role is ChatRole.User or ChatRole.Assistant)
+        .ToList();
+      var interpretation = await _intentInterpreter.TryInterpretAsync(interpretationText, context, interpretationHistory, _cts.Token);
       var mockResponse = MockPlanFactory.TryCreate(interpretation, context);
       if (mockResponse is not null)
       {
+        _pendingClarificationPrompt = mockResponse.ResponseType == ResponseType.ClarificationRequest
+          ? interpretationText
+          : null;
+
         if (mockResponse.Message is not null)
           AddMessage(ChatRole.Assistant, mockResponse.Message.Text);
 
@@ -103,34 +119,18 @@ internal sealed class ChatSessionController : IDisposable
         return;
       }
 
-      var settings = _settingsProvider();
-      if (!settings.HasApiKey)
+      if (isClarificationReply)
       {
-        AddMessage(ChatRole.Assistant, "Set your API key first: click Settings -> paste key -> Save. (It is stored locally in Rhino plugin settings.)");
+        AddMessage(ChatRole.Assistant, "I couldn't apply that clarification to the pending Rhino action. Try a specific value like `10mm` or restate the full request.");
         return;
       }
 
-      UpdateState(isBusy: true, statusText: "Thinking...");
-
-      var historyForApi = _history
-        .Where(m => m.Role is ChatRole.User or ChatRole.Assistant)
-        .ToList();
-
-      var sb = new StringBuilder();
-
-      await foreach (var chunk in _llmClient.StreamChatCompletionAsync(
-        endpoint: settings.Endpoint,
-        apiKey: settings.ApiKey,
-        model: settings.Model,
-        systemPrompt: _systemPrompt,
-        context: context,
-        history: historyForApi,
-        cancellationToken: _cts.Token))
-      {
-        sb.Append(chunk);
-      }
-
-      AddMessage(ChatRole.Assistant, sb.ToString().Trim());
+      _pendingClarificationPrompt = null;
+      AddMessage(
+        ChatRole.Assistant,
+        LooksLikeRhinoExecutionRequest(text)
+          ? "The cloud worker is not configured, so I can't interpret that broadly yet. Set the Worker URL in Settings to use the cloud planner/orchestrator path."
+          : "The cloud worker is not configured. Set the Worker URL in Settings so this panel can route normal Rhino questions and execution planning through the cloud agents.");
     }
     catch (OperationCanceledException)
     {
@@ -138,7 +138,7 @@ internal sealed class ChatSessionController : IDisposable
     }
     catch (Exception ex)
     {
-      AddMessage(ChatRole.Assistant, "Network/API error: " + ex.Message);
+      AddMessage(ChatRole.Assistant, "Cloud worker error: " + ex.Message);
     }
     finally
     {
@@ -172,5 +172,63 @@ internal sealed class ChatSessionController : IDisposable
 
     _state = next;
     StateChanged?.Invoke(_state);
+  }
+
+  private void HandleCloudTurnResponse(TurnResponse response)
+  {
+    _pendingClarificationPrompt = response.ResponseType == ResponseType.ClarificationRequest
+      ? _history.LastOrDefault(m => m.Role == ChatRole.User)?.Content
+      : null;
+
+    if (response.Message is not null && !string.IsNullOrWhiteSpace(response.Message.Text))
+      AddMessage(ChatRole.Assistant, response.Message.Text);
+
+    switch (response.ResponseType)
+    {
+      case ResponseType.PlanResponse:
+        if (response.Plan is not null)
+          _planExecutionCoordinator.LoadPlan(response);
+        break;
+
+      case ResponseType.ErrorResponse:
+        if (response.Error is not null)
+          AddMessage(ChatRole.Assistant, $"{response.Error.Code}: {response.Error.Message}");
+        break;
+
+      case ResponseType.ChatResponse:
+      case ResponseType.ClarificationRequest:
+        break;
+
+      default:
+        AddMessage(ChatRole.Assistant, $"Received unsupported cloud response type: {response.ResponseType}.");
+        break;
+    }
+  }
+
+  private static bool LooksLikeClarificationReply(string text)
+  {
+    var trimmed = (text ?? string.Empty).Trim();
+    if (trimmed.Length == 0 || trimmed.Length > 80)
+      return false;
+
+    if (Regex.IsMatch(trimmed, @"^\d+(?:\.\d+)?\s*(?:mm|cm|m|in|inch|inches)?$", RegexOptions.IgnoreCase))
+      return true;
+
+    if (Regex.IsMatch(trimmed, @"^(?:yes|no|centered|centred|solid|open|cap|uncapped)$", RegexOptions.IgnoreCase))
+      return true;
+
+    return !Regex.IsMatch(trimmed, @"\b(rect(?:angle)?|extrud\w*|fillet|circle|cylinder|create|make|draw|what|how|why)\b", RegexOptions.IgnoreCase);
+  }
+
+  private static bool LooksLikeRhinoExecutionRequest(string text)
+  {
+    var trimmed = (text ?? string.Empty).Trim();
+    if (trimmed.Length == 0)
+      return false;
+
+    return Regex.IsMatch(
+      trimmed,
+      @"\b(create|make|draw|put|place|add|move|rotate|scale|extrud\w*|fillet|boolean|offset|loft|sweep|patch|sphere|box|cylinder|rectangle|circle|line|surface|solid|hole|mount|clip)\b",
+      RegexOptions.IgnoreCase);
   }
 }

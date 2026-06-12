@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text.Json;
 using Eto.Forms;
 using Rhino;
 using Rhino.Commands;
@@ -15,6 +16,7 @@ internal sealed class PlanExecutionCoordinator
   private ExecutionPlanPayload? _currentPlan;
   private int _nextStepIndex;
   private bool _isRunningStep;
+  private bool _isStepRunQueued;
   private readonly Dictionary<string, IReadOnlyList<Guid>> _stepObjectIds = new(StringComparer.OrdinalIgnoreCase);
 
   public event Action<UI.PlanExecutionState>? StateChanged;
@@ -36,6 +38,7 @@ internal sealed class PlanExecutionCoordinator
     _currentPlan = response.Plan;
     _nextStepIndex = 0;
     _isRunningStep = false;
+    _isStepRunQueued = false;
     _stepObjectIds.Clear();
 
     PublishState(BuildAwaitingApprovalState());
@@ -78,15 +81,29 @@ internal sealed class PlanExecutionCoordinator
 
   private void QueueNextStepRun()
   {
-    Application.Instance.AsyncInvoke(() =>
+    if (_isStepRunQueued)
+      return;
+
+    _isStepRunQueued = true;
+
+    EventHandler? idleHandler = null;
+    idleHandler = (_, _) =>
     {
-      var started = RhinoApp.RunScript("_RhinoCopilotExecutePlanStep", false);
+      RhinoApp.Idle -= idleHandler;
+      _isStepRunQueued = false;
+
+      if (_currentPlan is null || CurrentStep is null)
+        return;
+
+      var started = TryStartPlanRunner();
       if (!started)
       {
         AssistantMessageGenerated?.Invoke("I could not start the Rhino plan runner command.");
         PublishState(BuildReadyState(detailOverride: "Step runner failed to start. Try again."));
       }
-    });
+    };
+
+    RhinoApp.Idle += idleHandler;
   }
 
   public Result ExecuteCurrentStep(RhinoDoc doc)
@@ -152,6 +169,8 @@ internal sealed class PlanExecutionCoordinator
     {
       case "CreateRectangle":
         return ExecuteCreateRectangle(doc, step);
+      case "CreateCircle":
+        return ExecuteCreateCircle(doc, step);
       case "ExtrudeCurve":
         return ExecuteExtrudeCurve(doc, step);
       default:
@@ -191,6 +210,38 @@ internal sealed class PlanExecutionCoordinator
 
     _stepObjectIds[step.StepId] = new[] { id };
     AssistantMessageGenerated?.Invoke($"Created a {width:0.###} x {height:0.###} rectangle on the active CPlane.");
+    return Result.Success;
+  }
+
+  private Result ExecuteCreateCircle(RhinoDoc doc, ExecutionStepPayload step)
+  {
+    var radius = GetDouble(step, "radius");
+    var centerX = GetDouble(step, "center_x");
+    var centerY = GetDouble(step, "center_y");
+
+    if (radius <= 0)
+    {
+      AssistantMessageGenerated?.Invoke("Circle step is missing a valid radius.");
+      return Result.Failure;
+    }
+
+    var plane = GetActivePlane(doc);
+    var center = plane.PointAt(centerX, centerY);
+    var circle = new Circle(plane, center, radius);
+    var curve = circle.ToNurbsCurve();
+    if (curve is null)
+      return Result.Failure;
+
+    var id = doc.Objects.AddCurve(curve);
+    if (id == Guid.Empty)
+      return Result.Failure;
+
+    doc.Objects.UnselectAll();
+    doc.Objects.Select(id);
+    doc.Views.Redraw();
+
+    _stepObjectIds[step.StepId] = new[] { id };
+    AssistantMessageGenerated?.Invoke($"Created a circle at {centerX:0.###},{centerY:0.###} with radius {radius:0.###}.");
     return Result.Success;
   }
 
@@ -313,6 +364,9 @@ internal sealed class PlanExecutionCoordinator
       int i => i,
       long l => l,
       decimal m => (double)m,
+      JsonElement json when json.ValueKind == JsonValueKind.Number && json.TryGetDouble(out var parsedJson) => parsedJson,
+      JsonElement json when json.ValueKind == JsonValueKind.String &&
+                              double.TryParse(json.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedJsonString) => parsedJsonString,
       string s when double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) => parsed,
       _ => Convert.ToDouble(value, CultureInfo.InvariantCulture)
     };
@@ -326,6 +380,9 @@ internal sealed class PlanExecutionCoordinator
     return value switch
     {
       bool b => b,
+      JsonElement json when json.ValueKind is JsonValueKind.True or JsonValueKind.False => json.GetBoolean(),
+      JsonElement json when json.ValueKind == JsonValueKind.String &&
+                              bool.TryParse(json.GetString(), out var parsedJsonBool) => parsedJsonBool,
       string s when bool.TryParse(s, out var parsed) => parsed,
       _ => defaultValue
     };
@@ -336,6 +393,7 @@ internal sealed class PlanExecutionCoordinator
     _currentPlan = null;
     _nextStepIndex = 0;
     _isRunningStep = false;
+    _isStepRunQueued = false;
     PublishState(UI.PlanExecutionState.Idle);
   }
 
@@ -393,4 +451,25 @@ internal sealed class PlanExecutionCoordinator
   }
 
   private void PublishState(UI.PlanExecutionState state) => StateChanged?.Invoke(state);
+
+  private static bool TryStartPlanRunner()
+  {
+    var attempts = new[]
+    {
+      "RhinoCopilotExecutePlanStep",
+      "_RhinoCopilotExecutePlanStep",
+      "! RhinoCopilotExecutePlanStep",
+      "! _RhinoCopilotExecutePlanStep"
+    };
+
+    foreach (var macro in attempts)
+    {
+      var started = RhinoApp.RunScript(macro, false);
+      RhinoApp.WriteLine($"Nexgen Copilot runner attempt '{macro}' => {(started ? "started" : "failed")}");
+      if (started)
+        return true;
+    }
+
+    return false;
+  }
 }

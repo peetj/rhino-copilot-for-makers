@@ -140,6 +140,12 @@ public sealed record TurnPayload(
   [property: JsonPropertyName("message_text")] string MessageText,
   [property: JsonPropertyName("client_capabilities")] ClientCapabilities ClientCapabilities);
 
+public sealed record ConversationMessagePayload(
+  [property: JsonPropertyName("turn_id")] string? TurnId,
+  [property: JsonPropertyName("role")] string Role,
+  [property: JsonPropertyName("text")] string Text,
+  [property: JsonPropertyName("created_at")] string? CreatedAt = null);
+
 public sealed record CommandStatePayload(
   [property: JsonPropertyName("is_command_running")] bool IsCommandRunning,
   [property: JsonPropertyName("active_command_name")] string? ActiveCommandName);
@@ -166,6 +172,7 @@ public sealed record TurnRequest(
   [property: JsonPropertyName("session")] SessionRef Session,
   [property: JsonPropertyName("document")] DocumentRef Document,
   [property: JsonPropertyName("turn")] TurnPayload Turn,
+  [property: JsonPropertyName("conversation")] IReadOnlyList<ConversationMessagePayload>? Conversation,
   [property: JsonPropertyName("rhino_context")] RhinoContextPayload RhinoContext);
 
 public sealed record RoutingPayload(

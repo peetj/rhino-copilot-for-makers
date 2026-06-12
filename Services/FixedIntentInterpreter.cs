@@ -1,5 +1,6 @@
 using RhinoCopilotForMakers.Contracts;
 using RhinoCopilotForMakers.Models;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -14,6 +15,10 @@ internal sealed class FixedIntentInterpreter : IIntentInterpreter
     _interpretation = interpretation;
   }
 
-  public Task<IntentInterpretationPayload?> TryInterpretAsync(string userText, RhinoContextSnapshot context, CancellationToken cancellationToken) =>
+  public Task<IntentInterpretationPayload?> TryInterpretAsync(
+    string userText,
+    RhinoContextSnapshot context,
+    IReadOnlyList<ChatMessage> history,
+    CancellationToken cancellationToken) =>
     Task.FromResult(_interpretation);
 }

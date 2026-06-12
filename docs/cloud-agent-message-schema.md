@@ -33,11 +33,14 @@ Plugin sends:
 
 - identity envelope: tenant, user, session, document
 - user message text
+- recent conversation turns
 - current Rhino context snapshot
 
 Main type:
 
 - `TurnRequest`
+
+Conversation history is optional on the wire but should be supplied in practice so the planner can handle short follow-ups and clarifications.
 
 ### 2. Cloud response types
 
@@ -148,7 +151,9 @@ This is the main safety boundary of the system.
 
 - C# DTOs: `Contracts/CopilotWireProtocol.cs`
 - TypeScript interfaces: `contracts/rhino-copilot-protocol.ts`
-- Interpreter interface: `Services/IIntentInterpreter.cs`
-- Cloud-backed interpreter: `Services/CloudIntentInterpreter.cs`
-- Default heuristic implementation: `Services/HeuristicIntentInterpreter.cs`
-- Fallback chain: `Services/CompositeIntentInterpreter.cs`
+- Plugin transport client: `Services/CopilotCloudClient.cs`
+- Worker entrypoint: `cloud/worker/src/index.ts`
+- Worker orchestrator: `cloud/agents/orchestrator/index.ts`
+- Worker planner: `cloud/agents/rhino-planner/index.ts`
+- Worker critic: `cloud/agents/plan-critic/index.ts`
+- Worker compiler: `cloud/agents/execution-compiler/index.ts`

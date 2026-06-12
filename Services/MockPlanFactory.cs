@@ -18,12 +18,16 @@ internal static class MockPlanFactory
       return BuildClarificationResponse(interpretation);
 
     var rectangleOperation = interpretation.Operations?.FirstOrDefault(x => x.Action == "create_rectangle_profile");
-    if (rectangleOperation is null)
+    var circleOperation = interpretation.Operations?.FirstOrDefault(x => x.Action == "create_circle_profile");
+    if (rectangleOperation is null && circleOperation is null)
       return null;
 
-    var width = GetDouble(rectangleOperation, "width");
-    var height = GetDouble(rectangleOperation, "height");
-    var centered = GetBool(rectangleOperation, "centered");
+    var width = rectangleOperation is null ? 0 : GetDouble(rectangleOperation, "width");
+    var height = rectangleOperation is null ? 0 : GetDouble(rectangleOperation, "height");
+    var centered = rectangleOperation is not null && GetBool(rectangleOperation, "centered");
+    var circleRadius = circleOperation is null ? 0 : GetDouble(circleOperation, "radius");
+    var centerX = circleOperation is null ? 0 : GetDouble(circleOperation, "center_x");
+    var centerY = circleOperation is null ? 0 : GetDouble(circleOperation, "center_y");
     var extrudeOperation = interpretation.Operations?.FirstOrDefault(x => x.Action == "extrude_profile");
     var filletOperation = interpretation.Operations?.FirstOrDefault(x => x.Action == "fillet_profile_corners");
     double? extrudeHeight = extrudeOperation is null ? null : GetDouble(extrudeOperation, "distance");
@@ -33,7 +37,8 @@ internal static class MockPlanFactory
     var planId = "plan_" + Guid.NewGuid().ToString("N")[..8];
     var steps = new List<ExecutionStepPayload>();
 
-    var rectangleStep = new ExecutionStepPayload(
+    ExecutionStepPayload profileStep = rectangleOperation is not null
+      ? new ExecutionStepPayload(
         StepId: "step_create_rectangle",
         Sequence: NextSequence(steps),
         Type: StepType.DirectGeometryAction,
@@ -61,9 +66,36 @@ internal static class MockPlanFactory
           BeforeRun: centered
             ? $"I will create a {width:0.###} x {height:0.###} rectangle centered on the active CPlane origin."
             : $"I will create a {width:0.###} x {height:0.###} rectangle from the active CPlane origin."),
+        AllowedInCommandState: AllowedCommandState.IdleOnly)
+      : new ExecutionStepPayload(
+        StepId: "step_create_circle",
+        Sequence: NextSequence(steps),
+        Type: StepType.DirectGeometryAction,
+        CommandName: "CreateCircle",
+        Strategy: StepStrategy.DeterministicGeometryWrite,
+        Macro: null,
+        Interactive: false,
+        DependsOn: Array.Empty<string>(),
+        Preconditions: new[]
+        {
+          new StepConditionPayload("rhino_command_idle", Required: true)
+        },
+        Postconditions: new[]
+        {
+          new StepConditionPayload("objects_added_min", Value: 1)
+        },
+        Parameters: new Dictionary<string, object?>
+        {
+          ["radius"] = circleRadius,
+          ["center_x"] = centerX,
+          ["center_y"] = centerY,
+          ["document_units"] = context.DocumentUnits
+        },
+        HumanGuidance: new HumanGuidancePayload(
+          BeforeRun: $"I will create a circle at {centerX:0.###},{centerY:0.###} with radius {circleRadius:0.###} on the active CPlane."),
         AllowedInCommandState: AllowedCommandState.IdleOnly);
 
-    steps.Add(rectangleStep);
+    steps.Add(profileStep);
 
     if (filletOperation is not null)
     {
@@ -73,9 +105,9 @@ internal static class MockPlanFactory
         Type: StepType.NativeCommand,
         CommandName: "FilletCorners",
         Strategy: StepStrategy.ScriptedNativeCommand,
-        Macro: $"! _SelNone _SelId {SelectionToken(rectangleStep.StepId)} _FilletCorners Radius={filletRadius.GetValueOrDefault().ToString("0.###", CultureInfo.InvariantCulture)} _Enter",
+        Macro: $"! _SelNone _SelId {SelectionToken(profileStep.StepId)} _FilletCorners Radius={filletRadius.GetValueOrDefault().ToString("0.###", CultureInfo.InvariantCulture)} _Enter",
         Interactive: false,
-        DependsOn: new[] { rectangleStep.StepId },
+        DependsOn: new[] { profileStep.StepId },
         Preconditions: new[]
         {
           new StepConditionPayload("rhino_command_idle", Required: true)
@@ -127,7 +159,7 @@ internal static class MockPlanFactory
     var plan = new ExecutionPlanPayload(
       PlanId: planId,
       Intent: interpretation.PrimaryIntent,
-      Summary: BuildSummary(width, height, extrudeHeight, hasFilletIntent, filletRadius, context.DocumentUnits),
+      Summary: BuildSummary(rectangleOperation is not null, width, height, circleRadius, centerX, centerY, extrudeHeight, hasFilletIntent, filletRadius, context.DocumentUnits),
       RequiresApproval: true,
       ApprovalMode: ApprovalMode.ApprovePlan,
       RiskLevel: RiskLevel.Low,
@@ -144,7 +176,7 @@ internal static class MockPlanFactory
       Routing: new RoutingPayload(
         Mode: RouteMode.MultiStepPlan,
         Confidence: interpretation.Confidence,
-        Reason: "Local intent interpreter recognized a supported rectangle/extrude workflow."),
+        Reason: "Local intent interpreter recognized a supported local profile workflow."),
       Message: new AssistantMessagePayload(
         Role: "assistant",
         Text: $"I can turn that into a {steps.Count}-step Rhino plan. Known parameters will be executed automatically where possible: {automationSummary}."),
@@ -180,12 +212,13 @@ internal static class MockPlanFactory
       MissingInputs: missing);
   }
 
-  private static string BuildSummary(double width, double height, double? extrudeHeight, bool hasFilletIntent, double? filletRadius, string units)
+  private static string BuildSummary(bool isRectangle, double width, double height, double circleRadius, double centerX, double centerY, double? extrudeHeight, bool hasFilletIntent, double? filletRadius, string units)
   {
-    var parts = new List<string>
-    {
-      $"Create a {width:0.###} x {height:0.###} rectangle"
-    };
+    var parts = new List<string>();
+
+    parts.Add(isRectangle
+      ? $"Create a {width:0.###} x {height:0.###} rectangle"
+      : $"Create a circle at {centerX:0.###},{centerY:0.###} with radius {circleRadius:0.###}");
 
     if (hasFilletIntent)
       parts.Add($"fillet the corners with radius {filletRadius.GetValueOrDefault():0.###}");

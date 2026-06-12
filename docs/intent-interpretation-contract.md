@@ -51,17 +51,21 @@ Interpretation result:
 - `assumptions`:
   - create from active CPlane origin unless user says otherwise
 
-## Local POC
+## Current execution path
 
-The current local implementation is heuristic and supports rectangle-oriented workflows only:
+Primary interpretation now happens in the cloud worker planner/critic pipeline.
+
+The plugin still keeps a narrow local heuristic fallback for development and safety-bound testing. That fallback currently supports only a small subset of workflows:
 
 - `rect` / `rectangle`
+- `circle`
 - optional `fillet`
 - optional `extrude`
 
 Files:
 
-- `Services/IIntentInterpreter.cs`
-- `Services/CloudIntentInterpreter.cs`
+- `cloud/agents/rhino-planner/index.ts`
+- `cloud/agents/plan-critic/index.ts`
+- `cloud/agents/execution-compiler/index.ts`
 - `Services/HeuristicIntentInterpreter.cs`
-- `Services/FixedIntentInterpreter.cs`
+- `Services/CopilotCloudClient.cs`

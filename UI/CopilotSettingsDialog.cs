@@ -5,7 +5,7 @@ using RhinoCopilotForMakers.Settings;
 namespace RhinoCopilotForMakers.UI;
 
 /// <summary>
-/// Shared settings dialog for editing the copilot endpoint, model, and API key.
+/// Shared settings dialog for editing the copilot cloud worker connection.
 /// </summary>
 internal static class CopilotSettingsDialog
 {
@@ -23,9 +23,8 @@ internal static class CopilotSettingsDialog
 
   private static Dialog<bool> CreateDialog(CopilotSettings settings)
   {
-    var endpoint = new TextBox { Text = settings.Endpoint };
-    var model = new TextBox { Text = settings.Model };
-    var apiKey = new PasswordBox { Text = settings.ApiKey };
+    var workerUrl = new TextBox { Text = settings.WorkerUrl };
+    var pluginSharedSecret = new PasswordBox { Text = settings.PluginSharedSecret };
 
     var save = new Button { Text = "Save" };
     var cancel = new Button { Text = "Close" };
@@ -40,9 +39,8 @@ internal static class CopilotSettingsDialog
 
     save.Click += (_, _) =>
     {
-      settings.Endpoint = endpoint.Text ?? settings.Endpoint;
-      settings.Model = model.Text ?? settings.Model;
-      settings.ApiKey = apiKey.Text ?? "";
+      settings.WorkerUrl = workerUrl.Text ?? settings.WorkerUrl;
+      settings.PluginSharedSecret = pluginSharedSecret.Text ?? "";
       dlg.Close(true);
     };
 
@@ -54,12 +52,16 @@ internal static class CopilotSettingsDialog
     };
 
     var layout = (DynamicLayout)dlg.Content;
-    layout.AddRow(new Label { Text = "Endpoint (OpenAI-compatible):" });
-    layout.AddRow(endpoint);
-    layout.AddRow(new Label { Text = "Model:" });
-    layout.AddRow(model);
-    layout.AddRow(new Label { Text = "API Key (stored locally):" });
-    layout.AddRow(apiKey);
+    layout.AddRow(new Label { Text = "Worker URL:" });
+    layout.AddRow(workerUrl);
+    layout.AddRow(new Label { Text = "Plugin Shared Secret (optional for local dev):" });
+    layout.AddRow(pluginSharedSecret);
+    layout.AddRow(new Label
+    {
+      Text = "Examples: http://127.0.0.1:8787 or https://your-worker.your-subdomain.workers.dev",
+      TextColor = Colors.Gray,
+      Wrap = WrapMode.Word
+    });
 
     dlg.DefaultButton = save;
     dlg.AbortButton = cancel;

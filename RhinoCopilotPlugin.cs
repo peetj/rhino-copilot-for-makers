@@ -26,14 +26,14 @@ public sealed class RhinoCopilotPlugin : PlugIn
   public RhinoCopilotPlugin()
   {
     Instance = this;
-    IntentInterpreter = new CompositeIntentInterpreter(
-      new CloudIntentInterpreter(LlmClient, () => CopilotSettings),
-      new HeuristicIntentInterpreter());
+    IntentInterpreter = new HeuristicIntentInterpreter();
   }
 
   internal PlanExecutionCoordinator PlanExecutionCoordinator { get; } = new();
-  internal LlmClient LlmClient { get; } = new(new HttpClient());
+  internal HttpClient HttpClient { get; } = new();
   internal IIntentInterpreter IntentInterpreter { get; }
+  internal CopilotCloudClient CloudClient => _cloudClient ??= new CopilotCloudClient(HttpClient, () => CopilotSettings);
+  private CopilotCloudClient? _cloudClient;
 
   /// <summary>
   /// Use Rhino's persistent plugin settings store.
