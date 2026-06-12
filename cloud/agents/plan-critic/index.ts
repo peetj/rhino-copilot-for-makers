@@ -1,4 +1,4 @@
-import type { IntentInterpretationPayload, RiskLevel, TurnRequest } from "../../../Contracts/rhino-copilot-protocol";
+import type { IntentInterpretationPayload, InterpretedOperationPayload, RiskLevel, TurnRequest } from "../../../Contracts/rhino-copilot-protocol";
 import type { CriticAgentOutput, PlannerAgentOutput } from "../../shared/agent-types";
 import { toIntentInterpretation } from "../../shared/agent-types";
 
@@ -15,7 +15,8 @@ export function critiquePlan(
 ): CriticAgentOutput {
   const interpretation = toIntentInterpretation(plannerOutput);
   const missingInputs = interpretation.missing_inputs ?? [];
-  const operations = interpretation.operations ?? [];
+  const operations = (interpretation.operations ?? []).filter(isUsableOperation);
+  const invalidOperationCount = (interpretation.operations ?? []).length - operations.length;
   const unsupportedActions = operations
     .map(operation => operation.action)
     .filter(action => !COMPILER_SUPPORTED_ACTIONS.has(action));
@@ -84,6 +85,39 @@ export function critiquePlan(
       };
 
     case "ready_to_plan":
+      if (operations.length == 0) {
+        return {
+          disposition: "clarify",
+          route_mode: "clarifying",
+          reason: "Planner marked the turn executable but did not return any usable operations.",
+          response_text: plannerOutput.response_text?.trim()
+            || "I understood that as an executable Rhino request, but I need to restate the action more concretely before I can build a plan.",
+          interpretation: {
+            ...interpretation,
+            operations
+          },
+          missing_inputs: missingInputs,
+          unsupported_actions: [],
+          risk_level: "low"
+        };
+      }
+
+      if (invalidOperationCount > 0) {
+        return {
+          disposition: "clarify",
+          route_mode: "clarifying",
+          reason: "Planner returned malformed operations.",
+          response_text: "I partially understood the Rhino request, but part of the planned action came back malformed. Please restate it once and I will rebuild the plan.",
+          interpretation: {
+            ...interpretation,
+            operations
+          },
+          missing_inputs: missingInputs,
+          unsupported_actions: [],
+          risk_level: "low"
+        };
+      }
+
       if (unsupportedActions.length > 0) {
         return {
           disposition: "unsupported",
@@ -124,14 +158,15 @@ function buildClarificationText(responseText: string, missingInputs: IntentInter
 
 function buildUnsupportedText(plannerOutput: PlannerAgentOutput, unsupportedActions: string[]): string {
   const readable = unsupportedActions
+    .filter((action): action is string => typeof action === "string" && action.trim().length > 0)
     .map(action => action.replaceAll("_", " "))
     .join(", ");
 
   if (plannerOutput.response_text?.trim()) {
-    return `${plannerOutput.response_text.trim()} I understood the intent, but the current local executor cannot run these actions yet: ${readable}.`;
+    return `${plannerOutput.response_text.trim()} I understood the intent, but the current local executor cannot run these actions yet: ${readable || "unknown actions"}.`;
   }
 
-  return `I understood the Rhino intent, but the current local executor cannot run these actions yet: ${readable}.`;
+  return `I understood the Rhino intent, but the current local executor cannot run these actions yet: ${readable || "unknown actions"}.`;
 }
 
 function computeRiskLevel(operationCount: number): RiskLevel {
@@ -140,4 +175,14 @@ function computeRiskLevel(operationCount: number): RiskLevel {
   }
 
   return "low";
+}
+
+function isUsableOperation(operation: InterpretedOperationPayload): boolean {
+  return !!operation
+    && typeof operation.operation_id === "string"
+    && operation.operation_id.trim().length > 0
+    && typeof operation.action === "string"
+    && operation.action.trim().length > 0
+    && Array.isArray(operation.parameters)
+    && Array.isArray(operation.depends_on);
 }

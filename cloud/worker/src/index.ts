@@ -17,41 +17,59 @@ export default {
     }
 
     if (request.method === "POST" && url.pathname === "/turn") {
-      if (!isAuthorizedPluginRequest(request, env)) {
-        return json(
-          {
-            ok: false,
-            error: "Unauthorized plugin request."
-          },
-          401
-        );
-      }
-
-      let payload: TurnRequest;
       try {
-        payload = (await request.json()) as TurnRequest;
-      } catch {
+        if (!isAuthorizedPluginRequest(request, env)) {
+          return json(
+            {
+              ok: false,
+              error: "Unauthorized plugin request."
+            },
+            401
+          );
+        }
+
+        let payload: TurnRequest;
+        try {
+          payload = (await request.json()) as TurnRequest;
+        } catch {
+          return json(
+            {
+              ok: false,
+              error: "Invalid JSON payload."
+            },
+            400
+          );
+        }
+
+        if (payload.schema_version !== SCHEMA_VERSION) {
+          return json(
+            {
+              ok: false,
+              error: `Unsupported schema version '${payload.schema_version}'.`
+            },
+            400
+          );
+        }
+
+        const response = await handleTurn(payload, env);
+        return json(response);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
         return json(
           {
-            ok: false,
-            error: "Invalid JSON payload."
+            schema_version: SCHEMA_VERSION,
+            response_type: "error_response",
+            request_id: null,
+            turn_id: "turn_error",
+            error: {
+              code: "worker_exception",
+              message,
+              retryable: true
+            }
           },
-          400
+          500
         );
       }
-
-      if (payload.schema_version !== SCHEMA_VERSION) {
-        return json(
-          {
-            ok: false,
-            error: `Unsupported schema version '${payload.schema_version}'.`
-          },
-          400
-        );
-      }
-
-      const response = await handleTurn(payload, env);
-      return json(response);
     }
 
     return json(
