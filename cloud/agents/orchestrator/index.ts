@@ -1,35 +1,72 @@
 import {
   SCHEMA_VERSION,
-  type RouteMode,
   type TurnRequest,
   type TurnResponse
 } from "../../../Contracts/rhino-copilot-protocol";
+import { compileExecutionPlan } from "../execution-compiler/index";
+import { critiquePlan } from "../plan-critic/index";
+import { planTurn } from "../rhino-planner/index";
+import type { Env } from "../../shared/env";
+import { buildChatResponse, buildClarificationResponse } from "../../shared/response-builders";
 
-function looksExecutable(message: string): boolean {
-  return /\b(create|make|draw|put|place|add|move|rotate|scale|extrud\w*|fillet|circle|rectangle|sphere|box|cylinder|line|surface|solid)\b/i.test(message);
-}
+export async function handleTurn(request: TurnRequest, env: Env): Promise<TurnResponse> {
+  const plannerOutput = await planTurn(env, request);
+  const criticOutput = critiquePlan(request, plannerOutput);
 
-export async function handleTurn(request: TurnRequest): Promise<TurnResponse> {
-  const routeMode: RouteMode = looksExecutable(request.turn.message_text)
-    ? "single_action"
-    : "informational";
+  switch (criticOutput.disposition) {
+    case "informational":
+      return buildChatResponse(
+        request,
+        criticOutput.route_mode,
+        criticOutput.response_text,
+        criticOutput.reason,
+        criticOutput.interpretation
+      );
 
-  return {
-    schema_version: SCHEMA_VERSION,
-    response_type: "chat_response",
-    request_id: request.request_id,
-    turn_id: request.turn.turn_id,
-    routing: {
-      mode: routeMode,
-      confidence: 0.2,
-      reason: "Cloud orchestrator scaffold is live, but planner/critic/execution compiler are not implemented yet."
-    },
-    message: {
-      role: "assistant",
-      text: routeMode === "single_action"
-        ? "Cloud orchestrator is connected. Execution routing will move here next, but the planner and compiler are still scaffolded only."
-        : "Cloud orchestrator is connected. Informational and execution routing will be implemented here."
+    case "clarify":
+      return buildClarificationResponse(
+        request,
+        criticOutput.response_text,
+        criticOutput.reason,
+        criticOutput.interpretation,
+        criticOutput.missing_inputs
+      );
+
+    case "unsafe":
+    case "unsupported":
+      return buildChatResponse(
+        request,
+        criticOutput.route_mode,
+        criticOutput.response_text,
+        criticOutput.reason,
+        criticOutput.interpretation
+      );
+
+    case "compile": {
+      const compiled = compileExecutionPlan(
+        request,
+        criticOutput.interpretation,
+        criticOutput.route_mode,
+        criticOutput.risk_level
+      );
+
+      return {
+        schema_version: SCHEMA_VERSION,
+        response_type: "plan_response",
+        request_id: request.request_id,
+        turn_id: request.turn.turn_id,
+        routing: {
+          mode: compiled.route_mode,
+          confidence: criticOutput.interpretation.confidence ?? null,
+          reason: criticOutput.reason
+        },
+        message: {
+          role: "assistant",
+          text: compiled.response_text
+        },
+        interpretation: criticOutput.interpretation,
+        plan: compiled.plan
+      };
     }
-  };
+  }
 }
-

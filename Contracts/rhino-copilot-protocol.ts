@@ -81,6 +81,13 @@ export interface TurnPayload {
   client_capabilities: ClientCapabilities;
 }
 
+export interface ConversationMessagePayload {
+  turn_id?: string | null;
+  role: "system" | "user" | "assistant";
+  text: string;
+  created_at?: string | null;
+}
+
 export interface CommandStatePayload {
   is_command_running: boolean;
   active_command_name?: string | null;
@@ -109,6 +116,7 @@ export interface TurnRequest {
   session: SessionRef;
   document: DocumentRef;
   turn: TurnPayload;
+  conversation?: ConversationMessagePayload[] | null;
   rhino_context: RhinoContextPayload;
 }
 

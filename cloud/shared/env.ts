@@ -16,3 +16,7 @@ export function requireSharedSecret(env: Env): string {
   return secret;
 }
 
+export function getSharedSecret(env: Env): string | null {
+  const secret = env.PLUGIN_SHARED_SECRET?.trim();
+  return secret ? secret : null;
+}

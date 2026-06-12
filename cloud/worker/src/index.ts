@@ -50,7 +50,7 @@ export default {
         );
       }
 
-      const response = await handleTurn(payload);
+      const response = await handleTurn(payload, env);
       return json(response);
     }
 

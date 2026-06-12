@@ -33,11 +33,14 @@ Plugin sends:
 
 - identity envelope: tenant, user, session, document
 - user message text
+- recent conversation turns
 - current Rhino context snapshot
 
 Main type:
 
 - `TurnRequest`
+
+Conversation history is optional on the wire but should be supplied in practice so the planner can handle short follow-ups and clarifications.
 
 ### 2. Cloud response types
 
