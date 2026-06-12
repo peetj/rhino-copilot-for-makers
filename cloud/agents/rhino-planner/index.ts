@@ -98,7 +98,7 @@ function recoverSupportedOperations(text: string, units: string): {
   const normalized = normalizeIntentText(text);
   const hasRectangleIntent = /\brect(?:angle)?\b/i.test(normalized);
   const hasCircleIntent = /\bcircl[e]?\b/i.test(normalized);
-  const hasExtrudeIntent = /\bextrud\w*\b/i.test(normalized);
+  const hasExtrudeIntent = /\bextrud\w*\b/i.test(normalized) || /\b(?:tall|high)\b/i.test(normalized);
   const hasFilletIntent = hasRectangleIntent && /\bfillet\b/i.test(normalized);
 
   if (!hasRectangleIntent && !hasCircleIntent) {
@@ -340,7 +340,9 @@ function tryParseExtrudeHeight(text: string): number | null {
   const patterns = [
     /extrud\w*\s+(?:it\s+)?(?:to|by)?\s*(?<d>\d+(?:\.\d+)?)/i,
     /height\s+(?:of|to|=)?\s*(?<d>\d+(?:\.\d+)?)/i,
-    /thick(?:ness)?\s+(?:of|to|=)?\s*(?<d>\d+(?:\.\d+)?)/i
+    /thick(?:ness)?\s+(?:of|to|=)?\s*(?<d>\d+(?:\.\d+)?)/i,
+    /make\s+it\s+(?<d>\d+(?:\.\d+)?)\s*(?:mm|cm|m|in|inch|inches)?\s*(?:tall|high)/i,
+    /(?<d>\d+(?:\.\d+)?)\s*(?:mm|cm|m|in|inch|inches)?\s*(?:tall|high)\b/i
   ];
 
   for (const pattern of patterns) {

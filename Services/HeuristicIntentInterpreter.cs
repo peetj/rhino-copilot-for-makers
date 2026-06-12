@@ -19,7 +19,7 @@ internal sealed class HeuristicIntentInterpreter : IIntentInterpreter
   private static readonly string[] FuzzyKeywords =
   {
     "rectangle", "rect", "circle", "sphere", "extrude", "fillet", "radius", "centered", "centred",
-    "create", "make", "draw", "put", "place", "solid", "diameter", "origin"
+    "create", "make", "draw", "put", "place", "solid", "diameter", "origin", "tall", "high"
   };
 
   public Task<IntentInterpretationPayload?> TryInterpretAsync(
@@ -209,7 +209,7 @@ internal sealed class HeuristicIntentInterpreter : IIntentInterpreter
     CircleIntentRegex.IsMatch(normalizedText);
 
   private static bool HasExtrudeIntent(string normalizedText) =>
-    ExtrudeIntentRegex.IsMatch(normalizedText);
+    ExtrudeIntentRegex.IsMatch(normalizedText) || Regex.IsMatch(normalizedText, @"\b(?:tall|high)\b", RegexOptions.IgnoreCase);
 
   internal static (double Width, double Height)? TryParseRectangleSize(string text)
   {
@@ -231,7 +231,9 @@ internal sealed class HeuristicIntentInterpreter : IIntentInterpreter
     {
       @"extrud\w*\s+(?:it\s+)?(?:to|by)?\s*(?<d>\d+(?:\.\d+)?)",
       @"height\s+(?:of|to|=)?\s*(?<d>\d+(?:\.\d+)?)",
-      @"thick(?:ness)?\s+(?:of|to|=)?\s*(?<d>\d+(?:\.\d+)?)"
+      @"thick(?:ness)?\s+(?:of|to|=)?\s*(?<d>\d+(?:\.\d+)?)",
+      @"make\s+it\s+(?<d>\d+(?:\.\d+)?)\s*(?:mm|cm|m|in|inch|inches)?\s*(?:tall|high)",
+      @"(?<d>\d+(?:\.\d+)?)\s*(?:mm|cm|m|in|inch|inches)?\s*(?:tall|high)\b"
     };
 
     foreach (var pattern in patterns)
