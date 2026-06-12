@@ -62,8 +62,9 @@ public sealed class RhinoCopilotPlugin : PlugIn
     RhinoApp.Idle += handler;
 
     var assembly = typeof(RhinoCopilotPlugin).Assembly;
+    var numericVersion = assembly.GetName().Version?.ToString() ?? "unknown";
     RhinoApp.WriteLine(
-      $"Rhino Copilot for Makers loaded. Build: {GetBuildVersion(assembly)} Path: {assembly.Location}");
+      $"Rhino Copilot for Makers loaded. Version: {numericVersion} Build: {GetBuildVersion(assembly)} Path: {assembly.Location}");
     return LoadReturnCode.Success;
   }
 

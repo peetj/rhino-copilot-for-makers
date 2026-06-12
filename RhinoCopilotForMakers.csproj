@@ -24,6 +24,13 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 
     <RhinoCopilotBuildStamp>$([System.DateTime]::Now.ToString("yyyy-MM-dd_HHmmss"))</RhinoCopilotBuildStamp>
+    <RhinoCopilotVersionMajor>1</RhinoCopilotVersionMajor>
+    <RhinoCopilotVersionMinor>0</RhinoCopilotVersionMinor>
+    <RhinoCopilotVersionPatch>$([System.DateTime]::Now.DayOfYear)</RhinoCopilotVersionPatch>
+    <RhinoCopilotVersionBuild>$([System.DateTime]::Now.ToString("HHmm"))</RhinoCopilotVersionBuild>
+    <Version>$(RhinoCopilotVersionMajor).$(RhinoCopilotVersionMinor).$(RhinoCopilotVersionPatch).$(RhinoCopilotVersionBuild)</Version>
+    <AssemblyVersion>$(Version)</AssemblyVersion>
+    <FileVersion>$(Version)</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup>
