@@ -1,4 +1,4 @@
-import type { IntentInterpretationPayload, InterpretedOperationPayload, RiskLevel, TurnRequest } from "../../../Contracts/rhino-copilot-protocol";
+import type { IntentInterpretationPayload, InterpretedOperationPayload, MissingInputPayload, RiskLevel, TurnRequest } from "../../../Contracts/rhino-copilot-protocol";
 import type { CriticAgentOutput, PlannerAgentOutput } from "../../shared/agent-types";
 import { toIntentInterpretation } from "../../shared/agent-types";
 
@@ -13,9 +13,27 @@ export function critiquePlan(
   request: TurnRequest,
   plannerOutput: PlannerAgentOutput
 ): CriticAgentOutput {
-  const interpretation = toIntentInterpretation(plannerOutput);
-  const missingInputs = interpretation.missing_inputs ?? [];
-  const operations = (interpretation.operations ?? []).filter(isUsableOperation);
+  let interpretation = toIntentInterpretation(plannerOutput);
+  let missingInputs = interpretation.missing_inputs ?? [];
+  let operations = (interpretation.operations ?? []).filter(isUsableOperation);
+
+  if (operations.length === 0 && (interpretation.execution_readiness === "ready_to_plan" || interpretation.execution_readiness === "needs_clarification")) {
+    const recovered = recoverSupportedOperations(request.turn.message_text, request.rhino_context.document_units);
+    if (recovered) {
+      interpretation = {
+        ...interpretation,
+        primary_intent: interpretation.primary_intent?.trim() || recovered.primary_intent,
+        execution_readiness: recovered.missing_inputs.length > 0 ? "needs_clarification" : "ready_to_plan",
+        confidence: Math.max(interpretation.confidence ?? 0, 0.86),
+        operations: recovered.operations,
+        missing_inputs: recovered.missing_inputs.length > 0 ? recovered.missing_inputs : [],
+        assumptions: [...new Set([...(interpretation.assumptions ?? []), ...recovered.assumptions])]
+      };
+      missingInputs = interpretation.missing_inputs ?? [];
+      operations = interpretation.operations ?? [];
+    }
+  }
+
   const invalidOperationCount = (interpretation.operations ?? []).length - operations.length;
   const unsupportedActions = operations
     .map(operation => operation.action)
@@ -185,4 +203,244 @@ function isUsableOperation(operation: InterpretedOperationPayload): boolean {
     && operation.action.trim().length > 0
     && Array.isArray(operation.parameters)
     && Array.isArray(operation.depends_on);
+}
+
+function recoverSupportedOperations(text: string, units: string): {
+  primary_intent: string;
+  operations: InterpretedOperationPayload[];
+  missing_inputs: MissingInputPayload[];
+  assumptions: string[];
+} | null {
+  const normalized = text.toLowerCase();
+  const hasRectangleIntent = /\brect(?:angle)?\b/i.test(normalized);
+  const hasCircleIntent = /\bcircl[e]?\b/i.test(normalized);
+  const hasExtrudeIntent = /\bextrud\w*\b/i.test(normalized);
+  const hasFilletIntent = hasRectangleIntent && /\bfillet\b/i.test(normalized);
+
+  if (!hasRectangleIntent && !hasCircleIntent) {
+    return null;
+  }
+
+  const operations: InterpretedOperationPayload[] = [];
+  const missingInputs: MissingInputPayload[] = [];
+  const assumptions: string[] = [];
+  const centered = /\bcenter(?:ed|red)?\b/i.test(normalized);
+
+  if (hasRectangleIntent) {
+    const size = tryParseRectangleSize(text);
+    if (!centered) {
+      assumptions.push("If not otherwise specified, create the rectangle from the active CPlane origin.");
+    }
+
+    if (!size) {
+      missingInputs.push({
+        name: "rectangle_size",
+        type: "2d_size",
+        unit: units,
+        required: true
+      });
+    } else {
+      operations.push({
+        operation_id: "op_create_rectangle_profile",
+        action: "create_rectangle_profile",
+        target: "active_cplane",
+        depends_on: [],
+        parameters: [
+          parameter("width", size.width, units, String(size.width)),
+          parameter("height", size.height, units, String(size.height)),
+          parameter("centered", centered, null, centered ? "centered" : "origin")
+        ],
+        confidence: 0.98,
+        can_execute_deterministically: true
+      });
+    }
+  }
+
+  if (hasCircleIntent) {
+    const radius = tryParseCircleRadius(text);
+    const center = tryParsePoint2(text) ?? { x: 0, y: 0 };
+
+    assumptions.push(center.x === 0 && center.y === 0
+      ? "If not otherwise specified, create the circle at the active CPlane origin."
+      : "Create the circle on the active CPlane using the supplied center point.");
+
+    if (!radius) {
+      missingInputs.push({
+        name: "circle_radius",
+        type: "distance",
+        unit: units,
+        required: true
+      });
+    } else {
+      operations.push({
+        operation_id: "op_create_circle_profile",
+        action: "create_circle_profile",
+        target: "active_cplane",
+        depends_on: [],
+        parameters: [
+          parameter("radius", radius, units, String(radius)),
+          parameter("center_x", center.x, units, String(center.x)),
+          parameter("center_y", center.y, units, String(center.y))
+        ],
+        confidence: 0.96,
+        can_execute_deterministically: true
+      });
+    }
+  }
+
+  if (hasFilletIntent) {
+    const filletRadius = tryParseFilletRadius(text);
+    if (!filletRadius) {
+      missingInputs.push({
+        name: "fillet_radius",
+        type: "distance",
+        unit: units,
+        required: true
+      });
+    } else {
+      const dependency = operations.some(operation => operation.operation_id === "op_create_rectangle_profile")
+        ? "op_create_rectangle_profile"
+        : "op_create_circle_profile";
+
+      operations.push({
+        operation_id: "op_fillet_profile_corners",
+        action: "fillet_profile_corners",
+        target: "latest_profile",
+        depends_on: [dependency],
+        parameters: [
+          parameter("radius", filletRadius, units, String(filletRadius))
+        ],
+        confidence: 0.94,
+        can_execute_deterministically: true
+      });
+    }
+  }
+
+  if (hasExtrudeIntent) {
+    const extrudeHeight = tryParseExtrudeHeight(text);
+    if (!extrudeHeight) {
+      missingInputs.push({
+        name: "extrude_height",
+        type: "distance",
+        unit: units,
+        required: true
+      });
+    } else {
+      const dependency = operations.some(operation => operation.operation_id === "op_fillet_profile_corners")
+        ? "op_fillet_profile_corners"
+        : operations.some(operation => operation.operation_id === "op_create_rectangle_profile")
+          ? "op_create_rectangle_profile"
+          : "op_create_circle_profile";
+
+      operations.push({
+        operation_id: "op_extrude_profile",
+        action: "extrude_profile",
+        target: "latest_profile",
+        depends_on: [dependency],
+        parameters: [
+          parameter("distance", extrudeHeight, units, String(extrudeHeight)),
+          parameter("cap", true, null, "solid")
+        ],
+        confidence: 0.96,
+        can_execute_deterministically: true
+      });
+    }
+  }
+
+  if (operations.length === 0 && missingInputs.length === 0) {
+    return null;
+  }
+
+  return {
+    primary_intent: operations.some(operation => operation.action === "extrude_profile")
+      ? "create_profile_then_extrude"
+      : operations.some(operation => operation.action === "fillet_profile_corners")
+        ? "create_and_finish_profile"
+        : operations.some(operation => operation.action === "create_circle_profile")
+          ? "create_circle_profile"
+          : "create_rectangle_profile",
+    operations,
+    missing_inputs: missingInputs,
+    assumptions
+  };
+}
+
+function parameter(name: string, value: unknown, unit: string | null, sourceText: string | null) {
+  return {
+    name,
+    value,
+    unit,
+    source_text: sourceText,
+    confidence: 0.98
+  };
+}
+
+function tryParseRectangleSize(text: string): { width: number; height: number } | null {
+  const match = text.match(/(?<w>\d+(?:\.\d+)?)\s*(?:x|×|by)\s*(?<h>\d+(?:\.\d+)?)/i);
+  if (!match?.groups) {
+    return null;
+  }
+
+  const width = Number(match.groups.w);
+  const height = Number(match.groups.h);
+  return width > 0 && height > 0 ? { width, height } : null;
+}
+
+function tryParseExtrudeHeight(text: string): number | null {
+  const patterns = [
+    /extrud\w*\s+(?:it\s+)?(?:to|by)?\s*(?<d>\d+(?:\.\d+)?)/i,
+    /height\s+(?:of|to|=)?\s*(?<d>\d+(?:\.\d+)?)/i,
+    /thick(?:ness)?\s+(?:of|to|=)?\s*(?<d>\d+(?:\.\d+)?)/i
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    const value = Number(match?.groups?.d);
+    if (value > 0) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function tryParseFilletRadius(text: string): number | null {
+  const patterns = [
+    /fillet(?:\s+radius)?(?:\s+of|\s+to|\s*=)?\s*(?<r>\d+(?:\.\d+)?)/i,
+    /fillet(?:\s+the)?(?:\s+\w+){0,4}\s+to\s+(?<r>\d+(?:\.\d+)?)/i,
+    /radius\s+(?:of|to|=)?\s*(?<r>\d+(?:\.\d+)?)/i
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    const value = Number(match?.groups?.r);
+    if (value > 0) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function tryParseCircleRadius(text: string): number | null {
+  const radiusMatch = text.match(/radius\s+(?:of|to|=)?\s*(?<r>\d+(?:\.\d+)?)/i)
+    ?? text.match(/\br(?:adius)?\s*(?<r>\d+(?:\.\d+)?)/i);
+  const radius = Number(radiusMatch?.groups?.r);
+  if (radius > 0) {
+    return radius;
+  }
+
+  const diameter = Number(text.match(/diameter\s+(?:of|to|=)?\s*(?<d>\d+(?:\.\d+)?)/i)?.groups?.d);
+  return diameter > 0 ? diameter / 2 : null;
+}
+
+function tryParsePoint2(text: string): { x: number; y: number } | null {
+  const match = text.match(/\bat\s*(?<x>-?\d+(?:\.\d+)?)\s*,\s*(?<y>-?\d+(?:\.\d+)?)/i);
+  if (!match?.groups) {
+    return null;
+  }
+
+  const x = Number(match.groups.x);
+  const y = Number(match.groups.y);
+  return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
 }
