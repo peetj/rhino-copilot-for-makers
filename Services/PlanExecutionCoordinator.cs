@@ -152,6 +152,8 @@ internal sealed class PlanExecutionCoordinator
     {
       case "CreateRectangle":
         return ExecuteCreateRectangle(doc, step);
+      case "CreateCircle":
+        return ExecuteCreateCircle(doc, step);
       case "ExtrudeCurve":
         return ExecuteExtrudeCurve(doc, step);
       default:
@@ -191,6 +193,38 @@ internal sealed class PlanExecutionCoordinator
 
     _stepObjectIds[step.StepId] = new[] { id };
     AssistantMessageGenerated?.Invoke($"Created a {width:0.###} x {height:0.###} rectangle on the active CPlane.");
+    return Result.Success;
+  }
+
+  private Result ExecuteCreateCircle(RhinoDoc doc, ExecutionStepPayload step)
+  {
+    var radius = GetDouble(step, "radius");
+    var centerX = GetDouble(step, "center_x");
+    var centerY = GetDouble(step, "center_y");
+
+    if (radius <= 0)
+    {
+      AssistantMessageGenerated?.Invoke("Circle step is missing a valid radius.");
+      return Result.Failure;
+    }
+
+    var plane = GetActivePlane(doc);
+    var center = plane.PointAt(centerX, centerY);
+    var circle = new Circle(plane, center, radius);
+    var curve = circle.ToNurbsCurve();
+    if (curve is null)
+      return Result.Failure;
+
+    var id = doc.Objects.AddCurve(curve);
+    if (id == Guid.Empty)
+      return Result.Failure;
+
+    doc.Objects.UnselectAll();
+    doc.Objects.Select(id);
+    doc.Views.Redraw();
+
+    _stepObjectIds[step.StepId] = new[] { id };
+    AssistantMessageGenerated?.Invoke($"Created a circle at {centerX:0.###},{centerY:0.###} with radius {radius:0.###}.");
     return Result.Success;
   }
 

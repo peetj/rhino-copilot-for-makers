@@ -129,7 +129,7 @@ internal sealed class ChatSessionController : IDisposable
         {
           AddMessage(
             ChatRole.Assistant,
-            "I can't execute that locally yet. Current local execution covers rectangle, fillet-corners, and extrude workflows. For broader Rhino actions, add an API key or extend the local executor.");
+            "I can't execute that locally yet. Current local execution covers rectangle, circle, fillet-corners, and extrude workflows. For broader Rhino actions, add an API key or extend the local executor.");
         }
         else
         {
