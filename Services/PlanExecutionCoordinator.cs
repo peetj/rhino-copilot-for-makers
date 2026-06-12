@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text.Json;
 using Eto.Forms;
 using Rhino;
 using Rhino.Commands;
@@ -363,6 +364,9 @@ internal sealed class PlanExecutionCoordinator
       int i => i,
       long l => l,
       decimal m => (double)m,
+      JsonElement json when json.ValueKind == JsonValueKind.Number && json.TryGetDouble(out var parsedJson) => parsedJson,
+      JsonElement json when json.ValueKind == JsonValueKind.String &&
+                              double.TryParse(json.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedJsonString) => parsedJsonString,
       string s when double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) => parsed,
       _ => Convert.ToDouble(value, CultureInfo.InvariantCulture)
     };
@@ -376,6 +380,9 @@ internal sealed class PlanExecutionCoordinator
     return value switch
     {
       bool b => b,
+      JsonElement json when json.ValueKind is JsonValueKind.True or JsonValueKind.False => json.GetBoolean(),
+      JsonElement json when json.ValueKind == JsonValueKind.String &&
+                              bool.TryParse(json.GetString(), out var parsedJsonBool) => parsedJsonBool,
       string s when bool.TryParse(s, out var parsed) => parsed,
       _ => defaultValue
     };
