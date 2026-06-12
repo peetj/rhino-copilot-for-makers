@@ -17,7 +17,9 @@ internal static class CopilotPanelHost
       RhinoCopilotPlugin.Instance!,
       typeof(CopilotPanel),
       "Nexgen Copilot",
-      null);
+      typeof(CopilotPanelHost).Assembly,
+      "RhinoCopilotForMakers.Assets.Branding.nexgen-plugin-manager-icon.ico",
+      PanelType.System);
   }
 
   public static void OpenInPreferredDock()

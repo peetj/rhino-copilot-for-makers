@@ -85,6 +85,10 @@
   </Target>
 
   <ItemGroup>
+    <EmbeddedResource Include="Assets\Branding\nexgen-plugin-manager-icon.ico">
+      <LogicalName>RhinoCopilotForMakers.Assets.Branding.nexgen-plugin-manager-icon.ico</LogicalName>
+    </EmbeddedResource>
+
     <!-- RhinoCommon for Rhino 8 -->
     <PackageReference Include="RhinoCommon" Version="8.*" />
 

@@ -5,6 +5,8 @@ using Rhino.PlugIns;
 [assembly: Guid("A6D1A2E4-7F2C-4D7E-9E1D-3B4B4C7C2C1D")]
 
 [assembly: PlugInDescription(
+  DescriptionType.Icon, "RhinoCopilotForMakers.Assets.Branding.nexgen-plugin-manager-icon.ico")]
+[assembly: PlugInDescription(
   DescriptionType.Address, "")]
 [assembly: PlugInDescription(
   DescriptionType.Country, "")]
