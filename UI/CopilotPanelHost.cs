@@ -16,7 +16,7 @@ internal static class CopilotPanelHost
     Panels.RegisterPanel(
       RhinoCopilotPlugin.Instance!,
       typeof(CopilotPanel),
-      "Rhino Copilot",
+      "Nexgen Copilot",
       null);
   }
 

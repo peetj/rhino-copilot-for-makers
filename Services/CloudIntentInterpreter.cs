@@ -12,7 +12,7 @@ namespace RhinoCopilotForMakers.Services;
 internal sealed class CloudIntentInterpreter : IIntentInterpreter
 {
   private const string SystemPrompt =
-    "You are the intent interpreter for Rhino Copilot. " +
+    "You are the intent interpreter for Nexgen Copilot for Rhino. " +
     "Your job is to convert the latest user request into a strict JSON object matching the IntentInterpretationPayload contract. " +
     "Return JSON only. Do not use markdown fences. Do not include commentary. " +
     "Classify the request into execution_readiness: informational_only, ready_to_plan, needs_clarification, or unsafe. " +
@@ -67,7 +67,7 @@ internal sealed class CloudIntentInterpreter : IIntentInterpreter
     }
     catch (Exception ex)
     {
-      RhinoApp.WriteLine($"Rhino Copilot cloud interpreter fallback: {ex.Message}");
+      RhinoApp.WriteLine($"Nexgen Copilot cloud interpreter fallback: {ex.Message}");
       return null;
     }
   }

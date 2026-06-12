@@ -17,9 +17,11 @@ namespace RhinoCopilotForMakers;
 public sealed class RhinoCopilotPlugin : PlugIn
 {
   private const string AutoOpenFlagFileName = "rhino-copilot-auto-open.flag";
+  private const string PluginDisplayName = "Nexgen Copilot for Rhino";
 
   public static RhinoCopilotPlugin? Instance { get; private set; }
   public override PlugInLoadTime LoadTime => PlugInLoadTime.AtStartup;
+  protected override string LocalPlugInName => PluginDisplayName;
 
   public RhinoCopilotPlugin()
   {
@@ -56,7 +58,7 @@ public sealed class RhinoCopilotPlugin : PlugIn
       }
       catch (Exception ex)
       {
-        RhinoApp.WriteLine($"Rhino Copilot: panel registration failed: {ex.Message}");
+        RhinoApp.WriteLine($"Nexgen Copilot: panel registration failed: {ex.Message}");
       }
     };
     RhinoApp.Idle += handler;
@@ -64,7 +66,7 @@ public sealed class RhinoCopilotPlugin : PlugIn
     var assembly = typeof(RhinoCopilotPlugin).Assembly;
     var numericVersion = assembly.GetName().Version?.ToString() ?? "unknown";
     RhinoApp.WriteLine(
-      $"Rhino Copilot for Makers loaded. Version: {numericVersion} Build: {GetBuildVersion(assembly)} Path: {assembly.Location}");
+      $"{PluginDisplayName} loaded. Version: {numericVersion} Build: {GetBuildVersion(assembly)} Path: {assembly.Location}");
     return LoadReturnCode.Success;
   }
 

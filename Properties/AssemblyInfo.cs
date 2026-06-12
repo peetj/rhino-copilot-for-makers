@@ -13,7 +13,7 @@ using Rhino.PlugIns;
 [assembly: PlugInDescription(
   DescriptionType.Phone, "")]
 [assembly: PlugInDescription(
-  DescriptionType.Organization, "Rhino Copilot for Makers")]
+  DescriptionType.Organization, "Nexgen")]
 [assembly: PlugInDescription(
   DescriptionType.UpdateUrl, "")]
 [assembly: PlugInDescription(

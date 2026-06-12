@@ -32,7 +32,7 @@ internal static class CopilotSettingsDialog
 
     var dlg = new Dialog<bool>
     {
-      Title = "Rhino Copilot Settings",
+      Title = "Nexgen Copilot Settings",
       Resizable = true,
       Padding = 10,
       MinimumSize = new Size(520, 220)

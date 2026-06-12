@@ -34,7 +34,7 @@ public sealed class CopilotPanel : Panel
 
   // System prompt required by spec.
   private const string SystemPrompt =
-    "You are Rhino Copilot for Makers, a professional assistant embedded inside Rhino 8. " +
+    "You are Nexgen Copilot for Rhino, a professional assistant embedded inside Rhino 8. " +
     "You help product designers, makers, and 3D printing users with Rhino 8 workflows. " +
     "You understand the current Rhino document context provided by the plugin, including units, selected object types, layers, and bounding box dimensions. " +
     "Give concise, practical guidance. When useful, provide copyable Rhino command sequences. " +
@@ -170,7 +170,7 @@ public sealed class CopilotPanel : Panel
       Spacing = 6,
       Items =
       {
-        new Label { Text = "Rhino Copilot for Makers", Font = new Font(SystemFont.Bold, 11.5f), Wrap = WrapMode.Word },
+        new Label { Text = "Nexgen Copilot for Rhino", Font = new Font(SystemFont.Bold, 11.5f), Wrap = WrapMode.Word },
         null,
         resetBtn,
         settingsBtn

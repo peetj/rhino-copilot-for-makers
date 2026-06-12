@@ -10,6 +10,12 @@
 
     <AssemblyName>RhinoCopilotForMakers</AssemblyName>
     <RootNamespace>RhinoCopilotForMakers</RootNamespace>
+    <AssemblyTitle>Nexgen Copilot for Rhino</AssemblyTitle>
+    <Product>Nexgen Copilot for Rhino</Product>
+    <Company>Nexgen</Company>
+    <Authors>Nexgen</Authors>
+    <Description>Embedded Rhino 8 copilot for guided modeling workflows, safe step-by-step execution, and practical product-design assistance.</Description>
+    <ApplicationIcon>Assets\Branding\nexgen-new-logo-round.ico</ApplicationIcon>
 
     <!-- Rhino plugin assemblies are typically deployed with a .rhp extension.
          (Under the hood it's a .NET assembly.) -->
@@ -23,11 +29,12 @@
     <!-- Keep output paths simple -->
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 
-    <RhinoCopilotBuildStamp>$([System.DateTime]::Now.ToString("yyyy-MM-dd_HHmmss"))</RhinoCopilotBuildStamp>
+    <RhinoCopilotBuildStamp>$([System.DateTime]::UtcNow.ToString("yyyy-MM-dd_HHmmss"))</RhinoCopilotBuildStamp>
     <RhinoCopilotVersionMajor>1</RhinoCopilotVersionMajor>
-    <RhinoCopilotVersionMinor>0</RhinoCopilotVersionMinor>
-    <RhinoCopilotVersionPatch>$([System.DateTime]::Now.DayOfYear)</RhinoCopilotVersionPatch>
-    <RhinoCopilotVersionBuild>$([System.DateTime]::Now.ToString("HHmm"))</RhinoCopilotVersionBuild>
+    <!-- Version format: major.yearOffset.dayOfYear.halfSecondsSinceMidnightUtc -->
+    <RhinoCopilotVersionMinor>$([MSBuild]::Subtract($([System.DateTime]::UtcNow.Year), 2000))</RhinoCopilotVersionMinor>
+    <RhinoCopilotVersionPatch>$([System.DateTime]::UtcNow.DayOfYear)</RhinoCopilotVersionPatch>
+    <RhinoCopilotVersionBuild>$([MSBuild]::Add($([MSBuild]::Add($([MSBuild]::Multiply($([System.DateTime]::UtcNow.Hour), 1800)), $([MSBuild]::Multiply($([System.DateTime]::UtcNow.Minute), 30)))), $([MSBuild]::Divide($([System.DateTime]::UtcNow.Second), 2))))</RhinoCopilotVersionBuild>
     <Version>$(RhinoCopilotVersionMajor).$(RhinoCopilotVersionMinor).$(RhinoCopilotVersionPatch).$(RhinoCopilotVersionBuild)</Version>
     <AssemblyVersion>$(Version)</AssemblyVersion>
     <FileVersion>$(Version)</FileVersion>
