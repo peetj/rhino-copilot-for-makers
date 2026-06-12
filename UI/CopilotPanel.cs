@@ -10,8 +10,7 @@ using RhinoCopilotForMakers.Services;
 namespace RhinoCopilotForMakers.UI;
 
 /// <summary>
-/// Dockable Eto panel implementing the chat UI.
-/// Guidance-only: does not execute commands or modify geometry.
+/// Dockable Eto panel implementing the chat UI and approved plan controls.
 /// </summary>
 [Guid("2D640F2D-0E52-4DD0-8B9C-6D1C6A4E6B35")]
 public sealed class CopilotPanel : Panel

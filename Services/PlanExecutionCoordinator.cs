@@ -46,11 +46,11 @@ internal sealed class PlanExecutionCoordinator
     if (_currentPlan is null)
       return;
 
-    AssistantMessageGenerated?.Invoke($"Plan approved. Ready to run Step 1 of {_currentPlan.Steps.Count}: {CurrentStep?.CommandName}.");
-    PublishState(BuildReadyState());
+    AssistantMessageGenerated?.Invoke($"Plan approved. I will start Step 1 of {_currentPlan.Steps.Count} automatically: {CurrentStep?.CommandName}.");
+    PublishState(BuildReadyState(detailOverride: "Plan approved. Starting the first Rhino step automatically."));
 
     if (autoStartFirstStep)
-      RequestRunNextStep();
+      QueueNextStepRun();
   }
 
   public void RejectPlan()
@@ -67,6 +67,11 @@ internal sealed class PlanExecutionCoordinator
     if (_currentPlan is null || _isRunningStep || CurrentStep is null)
       return;
 
+    QueueNextStepRun();
+  }
+
+  private void QueueNextStepRun()
+  {
     Application.Instance.AsyncInvoke(() =>
     {
       var started = RhinoApp.RunScript("_RhinoCopilotExecutePlanStep", false);
@@ -97,7 +102,10 @@ internal sealed class PlanExecutionCoordinator
     if (result != Result.Success)
     {
       AssistantMessageGenerated?.Invoke($"Step {step.Sequence} did not complete. You can retry {step.CommandName} when ready.");
-      PublishState(BuildReadyState(detailOverride: $"Step {step.Sequence} was cancelled or failed. You can run it again."));
+      PublishState(BuildReadyState(
+        titleOverride: "Plan Paused",
+        detailOverride: $"Step {step.Sequence} was cancelled or failed. You can retry it when ready.",
+        canRunNextStep: true));
       return result;
     }
 
@@ -111,7 +119,11 @@ internal sealed class PlanExecutionCoordinator
       return Result.Success;
     }
 
-    PublishState(BuildReadyState());
+    var plan = _currentPlan!;
+    var nextStep = CurrentStep;
+    AssistantMessageGenerated?.Invoke($"Continuing automatically with Step {nextStep?.Sequence} of {plan.Steps.Count}: {nextStep?.CommandName}.");
+    PublishState(BuildReadyState(detailOverride: $"Step {step.Sequence} finished. Starting Step {nextStep?.Sequence} automatically."));
+    QueueNextStepRun();
     return Result.Success;
   }
 
@@ -336,7 +348,7 @@ internal sealed class PlanExecutionCoordinator
       CanRunNextStep: false);
   }
 
-  private UI.PlanExecutionState BuildReadyState(string? detailOverride = null)
+  private UI.PlanExecutionState BuildReadyState(string? detailOverride = null, string? titleOverride = null, bool? canRunNextStep = null)
   {
     var plan = _currentPlan!;
     var nextStep = CurrentStep;
@@ -347,14 +359,14 @@ internal sealed class PlanExecutionCoordinator
 
     return new UI.PlanExecutionState(
       Phase: UI.PlanExecutionPhase.ReadyToRunStep,
-      Title: "Plan Approved",
+      Title: titleOverride ?? "Plan Approved",
       Detail: detail,
       CompletedSteps: completed,
       TotalSteps: plan.Steps.Count,
       NextStepLabel: nextStep?.CommandName,
       CanApprove: false,
       CanReject: true,
-      CanRunNextStep: nextStep is not null);
+      CanRunNextStep: canRunNextStep ?? false);
   }
 
   private UI.PlanExecutionState BuildRunningState(ExecutionStepPayload step)
